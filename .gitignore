@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
+.venv/
+venv/
+
+# Local/generated artifacts
+outputs/*
+!outputs/.gitkeep
+vendor/
+
+# Model/data artifacts
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+*.npz
+*.npy
+*.pdf
+*.png
+*.jpg
+*.jpeg
+*.gif
+
+# OS/editor
+.DS_Store
+*.swp
+*~

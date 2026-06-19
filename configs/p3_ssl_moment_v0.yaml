@@ -1,0 +1,72 @@
+experiment:
+  name: p3_ssl_moment_v0
+  objective: self_supervised_masked_reconstruction
+  seed: 42
+
+paths:
+  output_dir: P3_SSL/outputs/runs/p3_ssl_moment_v0
+
+data:
+  input_length_raw: 16384
+  decimation_factor: 8
+  input_length_ssl: 2048
+  normalization: window_zscore
+  split_train: train
+  split_val: val
+
+patching:
+  patch_size: 4
+  patch_stride: 4
+  guard_points: 8
+
+masking:
+  policy: block_time_mask_with_guard
+  mask_ratio: 0.25
+  min_block_length: 24
+  max_block_length: 128
+  event_biased_probability: 0.35
+  high_derivative_probability: 0.25
+
+model:
+  d_model: 128
+  n_heads: 4
+  n_layers: 4
+  dim_feedforward: 512
+  dropout: 0.10
+  activation: gelu
+  max_tokens: 1024
+
+loss:
+  signal: mse
+  derivative: huber
+  energy: huber
+  lambda_signal: 1.0
+  lambda_derivative: 0.2
+  lambda_energy: 0.05
+  huber_delta: 1.0
+
+training:
+  optimizer: adamw
+  lr: 0.0003
+  weight_decay: 0.01
+  batch_size: 16
+  epochs: 20
+  num_workers: 2
+  amp: true
+  grad_clip_norm: 1.0
+  log_every: 20
+  eval_every_epochs: 1
+
+audit:
+  patch_stride_configs:
+    - patch_size: 4
+      patch_stride: 4
+    - patch_size: 4
+      patch_stride: 2
+    - patch_size: 8
+      patch_stride: 8
+    - patch_size: 8
+      patch_stride: 4
+    - patch_size: 16
+      patch_stride: 8
+

@@ -14,7 +14,7 @@ from scipy.signal import find_peaks, hilbert, peak_widths
 
 
 ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_YEAST_ROOT = ROOT / "outputs" / "pretrained_backbones-4096_20260701" / "yeast_passage_events_p3_4096"
+DEFAULT_YEAST_ROOT = ROOT.parent / "artifacts" / "unsupervised-learning-flow-cytometry" / "pretrained_backbones-4096_20260701" / "yeast_passage_events_p3_4096"
 
 
 def _finite_quantiles(values: list[float] | np.ndarray) -> dict[str, float]:
@@ -246,7 +246,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Estimate two-close-component parameter ranges from yeast event crops.")
     parser.add_argument("--events-metadata", type=Path, default=DEFAULT_YEAST_ROOT / "events_metadata.csv")
     parser.add_argument("--aligned-inputs", type=Path, default=DEFAULT_YEAST_ROOT / "aligned_inputs.npz")
-    parser.add_argument("--output-dir", type=Path, default=ROOT / "outputs" / "yeast_particle_range_analysis")
+    parser.add_argument("--output-dir", type=Path, default=ROOT.parent / "artifacts" / "unsupervised-learning-flow-cytometry" / "yeast_particle_range_analysis")
     parser.add_argument("--source-groups", default="", help="Optional comma-separated groups, e.g. budding or budding,mix.")
     parser.add_argument("--max-events", type=int, default=0)
     parser.add_argument("--window-duration-ms", type=float, default=2.048)

@@ -8,8 +8,6 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
 
 from p3_ssl.config import load_config
 from p3_ssl.preflight import preflight_hybrid_run

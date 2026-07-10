@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "p3-ssl-flow-cytometry"
+version = "0.1.0"
+description = "Self-supervised particle-signal representation learning"
+requires-python = ">=3.10"
+dependencies = [
+    "einops>=0.7",
+    "huggingface-hub>=0.34,<1",
+    "matplotlib",
+    "numpy",
+    "pandas",
+    "python-dotenv==1.0.0",
+    "PyYAML",
+    "safetensors",
+    "scikit-learn",
+    "scipy",
+    "torch",
+    "transformers>=4.57,<4.58",
+]
+
+[project.optional-dependencies]
+test = ["pytest"]
+
+[tool.setuptools.packages.find]
+include = ["p3_ssl*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

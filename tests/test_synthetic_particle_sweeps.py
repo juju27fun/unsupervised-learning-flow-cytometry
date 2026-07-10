@@ -1,15 +1,8 @@
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import numpy as np
 
-ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
-
-from scripts.run_synthetic_particle_latent_sweeps import (
+from p3_ssl.synthetic_particle_sweeps import (
     DOUBLE_RANGES,
     SINGLE_RANGES,
     generate_double_particle_panel,

@@ -5,7 +5,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from scripts.evaluate_snr_embedding_impact import (
+from p3_ssl.snr_embedding_impact import (
     class_enrichment,
     impurity_from_neighbors,
     precompute_neighbor_indices,
@@ -13,7 +13,7 @@ from scripts.evaluate_snr_embedding_impact import (
     split_for_probe,
     top1_confusion_from_neighbors,
 )
-from scripts.plot_snr_threshold_manifolds import DatasetSpec
+from p3_ssl.snr_threshold_manifolds import DatasetSpec
 
 
 def test_class_enrichment_reports_low_snr_overrepresentation() -> None:

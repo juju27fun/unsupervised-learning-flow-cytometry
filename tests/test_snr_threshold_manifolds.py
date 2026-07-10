@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from scripts.plot_snr_threshold_manifolds import (
+from p3_ssl.snr_threshold_manifolds import (
     EmbeddingBundle,
     align_embeddings_to_metadata,
     build_particle_metadata,
@@ -56,8 +56,8 @@ def test_align_embeddings_to_metadata_uses_event_ids() -> None:
 
 
 def test_real_particle_snr_join_is_complete_when_artifacts_exist() -> None:
-    particle_root = ROOT / "outputs" / "pretrained_backbones" / "particles2snr_f_3class_native_params_moment_patchtst_conv1dgap"
-    manifest = REPO_ROOT / "particles2SNR_pipeline" / "output" / "p0_c1_Particles2SNR_F" / "event_classification_dataset" / "event_manifest.csv"
+    particle_root = ROOT.parent / "artifacts" / "unsupervised-learning-flow-cytometry" / "pretrained_backbones" / "particles2snr_f_3class_native_params_moment_patchtst_conv1dgap"
+    manifest = REPO_ROOT / "artifacts" / "particles2SNR-pipeline" / "runs" / "p0_c1_Particles2SNR_F" / "event_classification_dataset" / "event_manifest.csv"
     if not particle_root.exists() or not manifest.exists():
         pytest.skip("Particles2SNR_F artifacts are not available")
 
@@ -69,7 +69,7 @@ def test_real_particle_snr_join_is_complete_when_artifacts_exist() -> None:
 
 
 def test_real_yeast_metadata_uses_requested_three_classes_when_available() -> None:
-    yeast_root = ROOT / "outputs" / "pretrained_backbones" / "yeast_passage_events_p3_4096"
+    yeast_root = ROOT.parent / "artifacts" / "unsupervised-learning-flow-cytometry" / "pretrained_backbones" / "yeast_passage_events_p3_4096"
     if not yeast_root.exists():
         pytest.skip("Yeast event artifacts are not available")
 

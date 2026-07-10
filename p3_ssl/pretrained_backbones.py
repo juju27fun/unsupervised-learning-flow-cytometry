@@ -4,7 +4,6 @@ import copy
 import csv
 import json
 import os
-import sys
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Literal
@@ -16,17 +15,14 @@ from scipy import signal as scipy_signal
 
 from .data import ManifestRow, parse_yolo_1d_labels, read_manifest
 from .decimation import crop_or_pad, decimate_signal, ensure_1d_signal, normalize_signal
+from .paths import HF_CACHE
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-PRETRAINED_VENDOR = PROJECT_ROOT / "vendor" / "python_pretrained"
-DEFAULT_HF_CACHE = PROJECT_ROOT / "outputs" / "hf_cache"
+DEFAULT_HF_CACHE = HF_CACHE
 
 PATCHTST_DEFAULT_ID = "namctin/patchtst_etth1_pretrain"
 SWIN_DEFAULT_ID = "microsoft/swin-tiny-patch4-window7-224"
 MOMENT_DEFAULT_ID = "AutonLab/MOMENT-1-large"
-VENDOR_PYTHON = PROJECT_ROOT / "vendor" / "python"
-VENDOR_MOMENT_RESEARCH = PROJECT_ROOT / "vendor" / "moment-research"
 
 CLASS_NAMES = {
     0: "2um",
@@ -71,9 +67,6 @@ def configure_pretrained_paths(cache_dir: Path | None = None) -> None:
     cache.mkdir(parents=True, exist_ok=True)
     os.environ.setdefault("HF_HOME", str(cache))
     os.environ.setdefault("HF_HUB_CACHE", str(cache))
-    vendor = str(PRETRAINED_VENDOR)
-    if vendor not in sys.path:
-        sys.path.insert(0, vendor)
 
 
 def load_decimated_signal(
@@ -258,12 +251,6 @@ def configure_moment_with_pretrained_transformers(cache_dir: Path | None = None)
     cache = Path(cache_dir) if cache_dir is not None else DEFAULT_HF_CACHE
     for env_name in ("HF_HOME", "HF_HUB_CACHE", "TRANSFORMERS_CACHE"):
         os.environ.setdefault(env_name, str(cache))
-    ordered = [str(VENDOR_MOMENT_RESEARCH), str(PRETRAINED_VENDOR), str(VENDOR_PYTHON)]
-    for path_str in ordered:
-        while path_str in sys.path:
-            sys.path.remove(path_str)
-    for path_str in reversed(ordered):
-        sys.path.insert(0, path_str)
 
 
 def load_moment_official_model(

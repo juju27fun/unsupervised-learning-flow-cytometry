@@ -1,35 +1,23 @@
-# Python
 __pycache__/
+**/__pycache__/
 *.py[cod]
-*.pyo
-*.pyd
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
 .coverage
 htmlcov/
-
-# Virtual environments
+*.egg-info/
 .venv/
 venv/
+build/
+dist/
 
-# Local/generated artifacts
+# Use workspace artifacts and .cache roots.
 vendor/
-outputs/hf_cache/**
-!outputs/hf_cache/
-!outputs/hf_cache/.gitkeep
-outputs/runs/*smoke*/**
-outputs/particle_equation_latent_sweeps/smoke*/**
-outputs/physical_latent_eval/smoke*/**
-outputs/**/*.pdf
-outputs/**/*.png
-outputs/**/*.txt
-outputs/**/*.log
-outputs/**/*.tsv
-outputs/**/*.pid
-outputs/**/*.sh
+outputs/
+data/
+wandb/
 
-# Model/data artifacts
 *.pt
 *.pth
 *.ckpt
@@ -39,8 +27,7 @@ outputs/**/*.sh
 *.jpg
 *.jpeg
 *.gif
-
-# OS/editor
+*.log
 .DS_Store
 *.swp
 *~

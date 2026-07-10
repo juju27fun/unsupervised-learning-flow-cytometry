@@ -24,10 +24,6 @@ from sklearn.preprocessing import StandardScaler
 
 ROOT = Path(__file__).resolve().parents[1]
 REPO_ROOT = ROOT.parent
-P1_ROOT = REPO_ROOT / "P1"
-for path in (ROOT, P1_ROOT):
-    if str(path) not in sys.path:
-        sys.path.insert(0, str(path))
 
 from p3_ssl.config import load_config
 from p3_ssl.data import ManifestRow, read_manifest

@@ -179,7 +179,7 @@ def preflight_hybrid_run(
         )
     )
 
-    resolved_output_root = Path(output_root or config.get("paths", {}).get("output_root", "P3_SSL/outputs/runs"))
+    resolved_output_root = Path(output_root or config.get("paths", {}).get("output_root", "artifacts/unsupervised-learning-flow-cytometry/runs"))
     output_evidence = _output_root_ready(resolved_output_root)
     output_ready = (
         bool(output_evidence.get("exists") and output_evidence.get("is_dir") and output_evidence.get("writable"))

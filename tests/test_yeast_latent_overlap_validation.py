@@ -2,18 +2,12 @@ from __future__ import annotations
 
 import argparse
 import json
-import sys
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
-ROOT = Path(__file__).resolve().parents[1]
-SCRIPTS = ROOT / "scripts"
-if str(SCRIPTS) not in sys.path:
-    sys.path.insert(0, str(SCRIPTS))
-
-import validate_yeast_latent_overlap as overlap
+from p3_ssl import yeast_latent_overlap as overlap
 
 
 def test_validate_overlap_with_cached_embeddings(tmp_path: Path) -> None:

@@ -9,8 +9,6 @@ import torch
 
 
 ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
 
 from p3_ssl.models import MomentLikeConfig, MomentLikeReconstructor
 

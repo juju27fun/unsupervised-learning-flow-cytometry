@@ -217,7 +217,7 @@ def draw_figure(output_pdf: Path, output_png: Path, seed: int, n: int) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Reproduce the visual style of MOMENT Figure 7 for plotting design.")
-    parser.add_argument("--output-dir", type=Path, default=Path("P3_SSL/outputs/figure_design"))
+    parser.add_argument("--output-dir", type=Path, default=Path("artifacts/unsupervised-learning-flow-cytometry/figure_design"))
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--n", type=int, default=1800)
     args = parser.parse_args()

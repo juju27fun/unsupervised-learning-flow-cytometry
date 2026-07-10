@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from scripts.calibrate_yeast_template_generator import (
+from p3_ssl.yeast_template_calibration import (
     compute_signal_metrics,
     generate_template_candidate_signals,
     score_metric_summary,

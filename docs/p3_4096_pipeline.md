@@ -35,9 +35,9 @@ Yeast :
 
 ```bash
 HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 MPLCONFIGDIR=/tmp/matplotlib-cache \
-../P0/venv/bin/python scripts/build_yeast_event_dataset.py \
+../.venv/bin/python scripts/build_yeast_event_dataset.py \
   --input-dir /home/intern/Downloads/Yeast_folder \
-  --output-dir outputs/pretrained_backbones-4096_YYYYMMDD/yeast_passage_events_p3_4096 \
+  --output-dir artifacts/unsupervised-learning-flow-cytometry/pretrained_backbones-4096_YYYYMMDD/yeast_passage_events_p3_4096 \
   --quality strict \
   --write-audit
 ```
@@ -46,8 +46,8 @@ Particles2SNR_F 3 classes avec MOMENT, PatchTST et Conv1D-GAP même entrée :
 
 ```bash
 HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 MPLCONFIGDIR=/tmp/matplotlib-cache \
-../P0/venv/bin/python scripts/run_particles2snr_f_3class_aligned_backbones.py \
-  --output-dir outputs/pretrained_backbones-4096_YYYYMMDD/particles2snr_f_3class_moment_patchtst_conv1dgap \
+../.venv/bin/python scripts/run_particles2snr_f_3class_aligned_backbones.py \
+  --output-dir artifacts/unsupervised-learning-flow-cytometry/pretrained_backbones-4096_YYYYMMDD/particles2snr_f_3class_moment_patchtst_conv1dgap \
   --input-length 4096 \
   --raw-crop-length 4096 \
   --device cuda
@@ -64,8 +64,8 @@ Le script écrit :
 Pour un smoke rapide, limiter le dataset :
 
 ```bash
-../P0/venv/bin/python scripts/run_particles2snr_f_3class_aligned_backbones.py \
-  --output-dir outputs/pretrained_backbones-4096_YYYYMMDD/particles_quick \
+../.venv/bin/python scripts/run_particles2snr_f_3class_aligned_backbones.py \
+  --output-dir artifacts/unsupervised-learning-flow-cytometry/pretrained_backbones-4096_YYYYMMDD/particles_quick \
   --input-length 4096 \
   --raw-crop-length 4096 \
   --max-events-per-class 20 \
@@ -81,10 +81,10 @@ particles déjà produits. Les deux bundles doivent avoir la même longueur.
 
 ```bash
 HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 MPLCONFIGDIR=/tmp/matplotlib-cache \
-../P0/venv/bin/python scripts/run_particles2snr_f_plus_yeast_embeddings.py \
-  --particle-root outputs/pretrained_backbones-4096_YYYYMMDD/particles2snr_f_3class_moment_patchtst_conv1dgap \
-  --yeast-root outputs/pretrained_backbones-4096_YYYYMMDD/yeast_passage_events_p3_4096 \
-  --output-dir outputs/pretrained_backbones-4096_YYYYMMDD/particles2snr_f_3class_plus_yeast \
+../.venv/bin/python scripts/run_particles2snr_f_plus_yeast_embeddings.py \
+  --particle-root artifacts/unsupervised-learning-flow-cytometry/pretrained_backbones-4096_YYYYMMDD/particles2snr_f_3class_moment_patchtst_conv1dgap \
+  --yeast-root artifacts/unsupervised-learning-flow-cytometry/pretrained_backbones-4096_YYYYMMDD/yeast_passage_events_p3_4096 \
+  --output-dir artifacts/unsupervised-learning-flow-cytometry/pretrained_backbones-4096_YYYYMMDD/particles2snr_f_3class_plus_yeast \
   --input-length 4096 \
   --device cuda
 ```
@@ -104,7 +104,7 @@ bash scripts/launch_particle_equation_latent_sweeps.sh
 Pour un appel direct :
 
 ```bash
-../P0/venv/bin/python scripts/run_particle_equation_latent_sweeps.py \
+../.venv/bin/python scripts/run_particle_equation_latent_sweeps.py \
   --scenario single_particle \
   --models moment_official,patchtst_pretrained,conv1dgap_same_input_3class \
   --input-length 4096 \
@@ -122,7 +122,7 @@ False`, même si le GPU fonctionne sur la machine.
 Diagnostic :
 
 ```bash
-../P0/venv/bin/python scripts/check_gpu_access.py
+../.venv/bin/python scripts/check_gpu_access.py
 ```
 
 Pour les runs GPU lancés par Codex, utiliser une exécution hors sandbox /
@@ -137,7 +137,7 @@ escaladée. Un état sain montre à la fois :
 Les anciens dossiers utiles pour comparaison historique sont typiquement sous :
 
 ```text
-outputs/pretrained_backbones-10dB/
+artifacts/unsupervised-learning-flow-cytometry/pretrained_backbones-10dB/
 ```
 
 Ils utilisent généralement :
@@ -155,9 +155,9 @@ explicitement une compatibilité legacy et vérifie les longueurs.
 Au 1er juillet 2026, les artefacts 4096 disponibles sont :
 
 ```text
-outputs/pretrained_backbones-4096_20260701/yeast_passage_events_p3_4096/
-outputs/pretrained_backbones-4096_20260701/particles2snr_f_3class_moment_patchtst_conv1dgap_quick_offline/
-outputs/pretrained_backbones-4096_20260701/particles2snr_f_3class_plus_yeast_quick_offline/
+artifacts/unsupervised-learning-flow-cytometry/pretrained_backbones-4096_20260701/yeast_passage_events_p3_4096/
+artifacts/unsupervised-learning-flow-cytometry/pretrained_backbones-4096_20260701/particles2snr_f_3class_moment_patchtst_conv1dgap_quick_offline/
+artifacts/unsupervised-learning-flow-cytometry/pretrained_backbones-4096_20260701/particles2snr_f_3class_plus_yeast_quick_offline/
 ```
 
 Le full-dataset 4096 a été testé sur GPU et le GPU est bien accessible hors

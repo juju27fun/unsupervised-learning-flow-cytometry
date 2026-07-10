@@ -7,7 +7,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from scripts.run_ssl_assessment_figures import (
+from p3_ssl.assessment_figures import (
     balanced_indices,
     load_aligned_inputs,
     load_embedding_bundles,

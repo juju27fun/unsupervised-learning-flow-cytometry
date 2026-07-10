@@ -12,12 +12,10 @@ import torch
 
 
 ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
 
 from p3_ssl.config import load_config
 from p3_ssl.masking import mask_coherence_summary
-from scripts.train_ssl_reconstruction import make_dataset
+from p3_ssl.train_reconstruction import make_dataset
 
 
 def parse_splits(raw: str) -> list[str]:

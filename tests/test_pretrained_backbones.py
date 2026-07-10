@@ -12,13 +12,13 @@ from p3_ssl.pretrained_backbones import (
     collect_particle_events,
     signal_to_spectrogram_image,
 )
-from scripts.run_particles2snr_f_3class_aligned_backbones import (
+from p3_ssl.aligned_backbones import (
     build_aligned_signal,
     build_aligned_512_signal,
     materialize_conv_train_views,
     validate_no_test_leakage,
 )
-from scripts.run_pretrained_backbone_embeddings import (
+from p3_ssl.backbone_benchmark import (
     MOMENT_OFFICIAL_PATCH_LEN,
     MOMENT_OFFICIAL_PATCH_STRIDE,
     PATCHTST_PRETRAIN_CONTEXT_LENGTH,
@@ -167,7 +167,7 @@ def test_adaptive_bandpass_decimate_np_returns_target_length() -> None:
 
 
 def test_conv1dgap_latent_shape_for_native_input() -> None:
-    from models import create_model
+    from p0.models import create_model
 
     model = create_model("Conv1DGAP", input_length=4096, num_classes=4).eval()
     signals = torch.randn(2, 4096)

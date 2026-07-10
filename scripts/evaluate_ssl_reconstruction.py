@@ -15,8 +15,6 @@ from torch.utils.data import DataLoader
 
 
 ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
 
 from p3_ssl.config import load_config, validate_ssl_config
 from p3_ssl.data import SSLManifestDataset

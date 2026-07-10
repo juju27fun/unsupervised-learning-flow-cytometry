@@ -11,7 +11,7 @@ import numpy as np
 
 
 ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_YEAST_ROOT = ROOT / "outputs" / "pretrained_backbones-4096_20260701" / "yeast_passage_events_p3_4096"
+DEFAULT_YEAST_ROOT = ROOT.parent / "artifacts" / "unsupervised-learning-flow-cytometry" / "pretrained_backbones-4096_20260701" / "yeast_passage_events_p3_4096"
 
 
 def _read_rows(path: Path) -> list[dict[str, str]]:
@@ -144,7 +144,7 @@ def build_dataset(args: argparse.Namespace) -> dict[str, Any]:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Build a supervised isolated-yeast dataset for Conv1D-GAP training.")
     parser.add_argument("--yeast-root", type=Path, default=DEFAULT_YEAST_ROOT)
-    parser.add_argument("--output-dir", type=Path, default=ROOT / "outputs" / "yeast_conv1dgap_dataset")
+    parser.add_argument("--output-dir", type=Path, default=ROOT.parent / "artifacts" / "unsupervised-learning-flow-cytometry" / "yeast_conv1dgap_dataset")
     parser.add_argument("--label-column", default="source_group")
     parser.add_argument("--include-labels", default="", help="Optional comma-separated labels to keep, e.g. budding,mix,shmoo,shmoo2.")
     parser.add_argument("--min-events-per-class", type=int, default=20)

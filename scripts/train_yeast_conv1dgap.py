@@ -17,11 +17,6 @@ from torch.utils.data import DataLoader, Dataset
 
 ROOT = Path(__file__).resolve().parents[1]
 REPO_ROOT = ROOT.parent
-P0_ROOT = REPO_ROOT / "P0"
-for path_entry in (ROOT, P0_ROOT):
-    if str(path_entry) not in sys.path:
-        sys.path.insert(0, str(path_entry))
-
 
 class ArrayDataset(Dataset[tuple[torch.Tensor, torch.Tensor]]):
     def __init__(self, signals: np.ndarray, labels: np.ndarray, indices: np.ndarray) -> None:
@@ -65,7 +60,7 @@ def evaluate(model: nn.Module, loader: DataLoader, device: torch.device) -> dict
 
 
 def train(args: argparse.Namespace) -> dict[str, Any]:
-    from models import create_model
+    from p0.models import create_model
 
     set_seed(args.seed)
     with np.load(args.dataset, allow_pickle=True) as data:
@@ -140,8 +135,8 @@ def train(args: argparse.Namespace) -> dict[str, Any]:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Train a Conv1D-GAP control model on isolated yeast event crops.")
-    parser.add_argument("--dataset", type=Path, default=ROOT / "outputs" / "yeast_conv1dgap_dataset" / "yeast_conv1dgap_dataset.npz")
-    parser.add_argument("--output-dir", type=Path, default=ROOT / "outputs" / "yeast_conv1dgap")
+    parser.add_argument("--dataset", type=Path, default=ROOT.parent / "artifacts" / "unsupervised-learning-flow-cytometry" / "yeast_conv1dgap_dataset" / "yeast_conv1dgap_dataset.npz")
+    parser.add_argument("--output-dir", type=Path, default=ROOT.parent / "artifacts" / "unsupervised-learning-flow-cytometry" / "yeast_conv1dgap")
     parser.add_argument("--model-name", default="Conv1DGAP-L")
     parser.add_argument("--epochs", type=int, default=30)
     parser.add_argument("--batch-size", type=int, default=32)

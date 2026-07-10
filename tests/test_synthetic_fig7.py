@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from scripts.run_synthetic_moment_fig7_pipeline import (
+from p3_ssl.synthetic_fig7 import (
     generate_synthetic_panels,
     reduce_embeddings,
 )

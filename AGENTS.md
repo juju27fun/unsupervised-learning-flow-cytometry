@@ -1,13 +1,14 @@
-# P3 SSL Codex Instructions
+# Unsupervised Learning for Flow Cytometry agent context
 
-## PF Calcul
-
-- For remote pfcalcul GPU work, read `PF_CALCUL_JUPYTER_FIRST_AGENT_PROMPT.md`
-  from this directory before launching anything.
-- For interactive/fast pfcalcul GPU execution, use the Jupyter RTX PRO runner.
-- Do not launch GPU training directly over SSH. SSH is for enqueueing runner
-  jobs, monitoring, collecting results, and explicit Slurm submissions.
-- Use Slurm only when the user explicitly asks for batch execution or when
-  reliability across Jupyter/session interruptions matters.
-- Do not delete datasets/checkpoints or cancel running long jobs without
-  explicit confirmation.
+- Treat this as an independent nested repository and obey the parent workspace
+  `AGENTS.md`.
+- Put reusable logic in `p3_ssl/`; scripts must be thin CLIs and must not inject
+  source or vendored directories into `sys.path`.
+- Resolve datasets through the workspace registry. Write all run material to
+  `artifacts/unsupervised-learning-flow-cytometry/<run-id>/`.
+- Keep model caches in `.cache/huggingface`; do not recreate `outputs/`,
+  `vendor/python*`, or a project-local environment.
+- Import `p0`, `detseg`, and MOMENT from the shared installed environment.
+- Verify with `.venv/bin/python -m pytest -q unsupervised-learning-flow-cytometry/tests`
+  and avoid downloading models or launching GPU training for a source-only check.
+- Use the workspace pfcalcul orchestration and runbook for remote execution.

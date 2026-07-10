@@ -11,8 +11,6 @@ import torch
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
 
 from p3_ssl.official_moment import encode_with_official_moment, load_official_moment
 
@@ -20,11 +18,11 @@ from p3_ssl.official_moment import encode_with_official_moment, load_official_mo
 def main() -> None:
     parser = argparse.ArgumentParser(description="Smoke-test the official MOMENT HF model loader.")
     parser.add_argument("--model-id", default="AutonLab/MOMENT-1-large")
-    parser.add_argument("--cache-dir", type=Path, default=ROOT / "outputs" / "hf_cache")
+    parser.add_argument("--cache-dir", type=Path, default=ROOT.parent / ".cache" / "huggingface")
     parser.add_argument("--seq-len", type=int, default=4096)
     parser.add_argument("--batch-size", type=int, default=2)
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
-    parser.add_argument("--output-json", type=Path, default=ROOT / "outputs" / "official_moment_smoke.json")
+    parser.add_argument("--output-json", type=Path, default=ROOT.parent / "artifacts" / "unsupervised-learning-flow-cytometry" / "official_moment_smoke.json")
     args = parser.parse_args()
 
     device = torch.device(args.device)

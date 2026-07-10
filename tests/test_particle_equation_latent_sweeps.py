@@ -4,7 +4,7 @@ import json
 
 import numpy as np
 
-from scripts.run_particle_equation_latent_sweeps import (
+from p3_ssl.particle_equation_sweeps import (
     GAUSSIAN_FWHM_TO_SIGMA,
     REALISTIC_TAU_BASE_MS,
     REALISTIC_TAU_SWEEP_MS,

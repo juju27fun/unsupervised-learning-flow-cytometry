@@ -7,7 +7,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from scripts.plot_snr_metric_figures import (
+from p3_ssl.snr_metric_figures import (
     compute_low_snr_confused_masks,
     most_enriched_class,
     nearest_metric_row,
@@ -15,7 +15,7 @@ from scripts.plot_snr_metric_figures import (
     process_dataset,
     quantile_tag,
 )
-from scripts.plot_snr_threshold_manifolds import DatasetSpec
+from p3_ssl.snr_threshold_manifolds import DatasetSpec
 
 
 def test_parse_quantiles_and_tag() -> None:

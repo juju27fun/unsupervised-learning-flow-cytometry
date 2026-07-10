@@ -14,20 +14,19 @@ import torch
 
 ROOT = Path(__file__).resolve().parents[1]
 REPO_ROOT = ROOT.parent
-P0_ROOT = REPO_ROOT / "P0"
-for path_entry in (ROOT, P0_ROOT, Path(__file__).resolve().parent):
-    if str(path_entry) not in sys.path:
-        sys.path.insert(0, str(path_entry))
-
-import run_pretrained_backbone_embeddings as backbone
+from p3_ssl import backbone_benchmark as backbone
 from p3_ssl.pretrained_backbones import MOMENT_DEFAULT_ID, PATCHTST_DEFAULT_ID, ParticleEvent
 
-from run_particles2snr_f_3class_aligned_backbones import CONV_MODEL_KEY, balanced_visual_indices, encode_conv_features_all
+from p3_ssl.aligned_backbones import (
+    CONV_MODEL_KEY,
+    balanced_visual_indices,
+    encode_conv_features_all,
+)
 
 
 CLASS_LABELS = {0: "2um", 1: "4um", 2: "10um", 3: "yeast"}
 MODEL_KEYS = ("moment_official", "patchtst_pretrained", CONV_MODEL_KEY)
-DEFAULT_PARTICLE_ROOT = ROOT / "outputs" / "pretrained_backbones" / "particles2snr_f_3class_same_input_conv1dgap_augmented_train"
+DEFAULT_PARTICLE_ROOT = ROOT.parent / "artifacts" / "unsupervised-learning-flow-cytometry" / "pretrained_backbones" / "particles2snr_f_3class_same_input_conv1dgap_augmented_train"
 
 
 def configure_display_names() -> None:
@@ -102,7 +101,7 @@ def subset_events(
 
 
 def load_conv1dgap_3class_model(checkpoint_path: Path, model_name: str, input_length: int, device: torch.device) -> torch.nn.Module:
-    from models import create_model
+    from p0.models import create_model
 
     state = torch.load(checkpoint_path, map_location="cpu")
     if isinstance(state, dict) and "model_state_dict" in state:
@@ -260,9 +259,9 @@ def run(args: argparse.Namespace) -> None:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Combine Particles2SNR_F 3-class embeddings with detected yeast events for P3 zero-shot figures.")
     parser.add_argument("--particle-root", type=Path, default=DEFAULT_PARTICLE_ROOT)
-    parser.add_argument("--yeast-root", type=Path, default=ROOT / "outputs" / "pretrained_backbones" / "yeast_passage_events_p3_4096")
-    parser.add_argument("--output-dir", type=Path, default=ROOT / "outputs" / "pretrained_backbones" / "particles2snr_f_3class_plus_yeast_moment_patchtst_conv1dgap")
-    parser.add_argument("--cache-dir", type=Path, default=ROOT / "outputs" / "hf_cache")
+    parser.add_argument("--yeast-root", type=Path, default=ROOT.parent / "artifacts" / "unsupervised-learning-flow-cytometry" / "pretrained_backbones" / "yeast_passage_events_p3_4096")
+    parser.add_argument("--output-dir", type=Path, default=ROOT.parent / "artifacts" / "unsupervised-learning-flow-cytometry" / "pretrained_backbones" / "particles2snr_f_3class_plus_yeast_moment_patchtst_conv1dgap")
+    parser.add_argument("--cache-dir", type=Path, default=ROOT.parent / ".cache" / "huggingface")
     parser.add_argument("--moment-model-id", default=MOMENT_DEFAULT_ID)
     parser.add_argument("--patchtst-model-id", default=PATCHTST_DEFAULT_ID)
     parser.add_argument("--conv-checkpoint", type=Path, default=DEFAULT_PARTICLE_ROOT / CONV_MODEL_KEY / "best_model.pt")

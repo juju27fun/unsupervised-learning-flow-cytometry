@@ -1,18 +1,16 @@
 from __future__ import annotations
 
 import os
-import sys
 from dataclasses import dataclass
 from pathlib import Path
+
+from .paths import HF_CACHE
 
 import numpy as np
 import torch
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-VENDOR_PYTHON = PROJECT_ROOT / "vendor" / "python"
-VENDOR_MOMENT_RESEARCH = PROJECT_ROOT / "vendor" / "moment-research"
-DEFAULT_HF_CACHE = PROJECT_ROOT / "outputs" / "hf_cache"
+DEFAULT_HF_CACHE = HF_CACHE
 
 
 @dataclass(frozen=True)
@@ -25,16 +23,12 @@ class OfficialMomentSpec:
 
 
 def configure_official_moment_paths(cache_dir: Path | None = None) -> None:
-    """Expose vendored MOMENT code/deps and keep HF artifacts inside P3_SSL."""
+    """Configure shared Hugging Face cache for the installed MOMENT package."""
     cache = Path(cache_dir) if cache_dir is not None else DEFAULT_HF_CACHE
     cache.mkdir(parents=True, exist_ok=True)
     for env_name in ("HF_HOME", "HF_HUB_CACHE", "TRANSFORMERS_CACHE"):
         os.environ.setdefault(env_name, str(cache))
 
-    for path in (VENDOR_PYTHON, VENDOR_MOMENT_RESEARCH):
-        path_str = str(path)
-        if path_str not in sys.path:
-            sys.path.insert(0, path_str)
 
 
 def load_official_moment(

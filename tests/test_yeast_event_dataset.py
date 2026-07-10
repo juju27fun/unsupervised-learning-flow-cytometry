@@ -6,7 +6,7 @@ from pathlib import Path
 
 import numpy as np
 
-from scripts.build_yeast_event_dataset import (
+from p3_ssl.yeast_event_dataset import (
     YeastDetectionConfig,
     build_aligned_signal_at_center,
     build_aligned_512_signal_at_center,

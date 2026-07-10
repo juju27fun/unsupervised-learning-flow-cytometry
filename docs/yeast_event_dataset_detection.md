@@ -9,7 +9,7 @@ nécessaires pour auditer la détection.
 Le dataset canonique P3 4096 est généré ici par défaut :
 
 ```text
-outputs/pretrained_backbones/yeast_passage_events_p3_4096/
+artifacts/unsupervised-learning-flow-cytometry/pretrained_backbones/yeast_passage_events_p3_4096/
 ```
 
 La sortie modèle principale est `aligned_inputs.npz`. Elle contient des
@@ -316,7 +316,7 @@ center on detected yeast passage -> crop raw 4096 -> 4096 -> window_zscore
 ## Statistiques Du Run Observé
 
 Pour le run canonique 4096 du 1er juillet 2026,
-`outputs/pretrained_backbones-4096_20260701/yeast_passage_events_p3_4096/`,
+`artifacts/unsupervised-learning-flow-cytometry/pretrained_backbones-4096_20260701/yeast_passage_events_p3_4096/`,
 le résumé indique :
 
 | Quantité | Valeur |
@@ -362,9 +362,9 @@ et que la fenêtre finale contient l'information utile.
 La commande de base est :
 
 ```bash
-../P0/venv/bin/python scripts/build_yeast_event_dataset.py \
+../.venv/bin/python scripts/build_yeast_event_dataset.py \
   --input-dir /home/intern/Downloads/Yeast_folder \
-  --output-dir outputs/pretrained_backbones/yeast_passage_events_p3_4096 \
+  --output-dir artifacts/unsupervised-learning-flow-cytometry/pretrained_backbones/yeast_passage_events_p3_4096 \
   --quality strict \
   --write-audit
 ```
@@ -372,7 +372,7 @@ La commande de base est :
 Le chemin de sortie par défaut du script, si `--output-dir` n'est pas donné, est :
 
 ```text
-outputs/pretrained_backbones/yeast_passage_events_p3_4096
+artifacts/unsupervised-learning-flow-cytometry/pretrained_backbones/yeast_passage_events_p3_4096
 ```
 
 ## Tests Associés
@@ -389,7 +389,7 @@ Ils couvrent notamment :
 Commande ciblée :
 
 ```bash
-../P0/venv/bin/python -m pytest tests/test_yeast_event_dataset.py
+../.venv/bin/python -m pytest tests/test_yeast_event_dataset.py
 ```
 
 ## Points D'attention

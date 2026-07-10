@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 import csv
-import importlib.util
-import sys
 from pathlib import Path
 from typing import Any
 
@@ -27,14 +25,9 @@ HYBRID_COLUMNS = (
 
 
 def _load_particle_equation_module() -> Any:
-    script = Path(__file__).resolve().parents[1] / "scripts" / "run_particle_equation_latent_sweeps.py"
-    spec = importlib.util.spec_from_file_location("_p3_particle_equation_latent_sweeps", script)
-    if spec is None or spec.loader is None:
-        raise RuntimeError(f"Could not load particle equation helpers from {script}")
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[spec.name] = module
-    spec.loader.exec_module(module)
-    return module
+    from . import particle_equation_sweeps
+
+    return particle_equation_sweeps
 
 
 def _write_yolo_labels(path: Path, labels: list[tuple[float, float]], class_id: int = 0) -> None:

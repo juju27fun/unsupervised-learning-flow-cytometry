@@ -18,8 +18,6 @@ from torch.utils.data import DataLoader
 
 
 ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
 
 from p3_ssl.config import load_config, validate_ssl_config
 from p3_ssl.augmentations import cosine_distance_loss, positive_signal_augmentation
@@ -49,7 +47,7 @@ from p3_ssl.run_assessment import assess_hybrid_run, write_run_assessment
 from p3_ssl.run_comparison import compare_reconstruction_metrics, load_reference_reconstruction_metrics
 from p3_ssl.serialization import json_safe
 from p3_ssl.masking import PatchSpec
-from scripts.run_ssl_assessment_figures import (
+from p3_ssl.assessment_figures import (
     EmbeddingBundle,
     plot_manifold_figure,
     plot_retrieval_sheet,
@@ -929,7 +927,7 @@ def main() -> None:
 
     config = load_config(args.config)
     set_seed(int(config["experiment"].get("seed", 42)))
-    output_root = args.output_root or Path(config["paths"].get("output_root", "P3_SSL/outputs/runs"))
+    output_root = args.output_root or Path(config["paths"].get("output_root", "artifacts/unsupervised-learning-flow-cytometry/runs"))
     run_name = f"hybrid_physics_{args.profile}_{time.strftime('%Y%m%d_%H%M%S')}"
     output_dir = output_root / run_name
     output_dir.mkdir(parents=True, exist_ok=True)

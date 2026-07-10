@@ -10,8 +10,6 @@ import numpy as np
 
 
 ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
 
 from p3_ssl.data import labels_to_event_mask, parse_yolo_1d_labels
 from p3_ssl.decimation import crop_or_pad, decimate_signal, ensure_1d_signal, normalize_signal

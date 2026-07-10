@@ -4,7 +4,7 @@ experiment:
   seed: 42
 
 paths:
-  output_dir: P3_SSL/outputs/runs/p3_ssl_moment_v0
+  output_dir: artifacts/unsupervised-learning-flow-cytometry/runs/p3_ssl_moment_v0
 
 data:
   input_length_raw: 16384

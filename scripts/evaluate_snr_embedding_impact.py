@@ -608,7 +608,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Evaluate SNR-conditioned embedding overlap and confusion metrics for particles and yeast.")
     parser.add_argument("--particle-root", type=Path, default=ROOT / "outputs" / "pretrained_backbones" / "particles2snr_f_3class_native_params_moment_patchtst_conv1dgap")
     parser.add_argument("--particle-manifest", type=Path, default=REPO_ROOT / "particles2SNR_pipeline" / "output" / "p0_c1_Particles2SNR_F" / "event_classification_dataset" / "event_manifest.csv")
-    parser.add_argument("--yeast-event-root", type=Path, default=ROOT / "outputs" / "pretrained_backbones" / "yeast_passage_events_p3_512")
+    parser.add_argument("--yeast-event-root", type=Path, default=ROOT / "outputs" / "pretrained_backbones" / "yeast_passage_events_p3_4096")
     parser.add_argument("--yeast-embedding-root", type=Path, default=ROOT / "outputs" / "pretrained_backbones" / "particles2snr_f_3class_plus_yeast_moment_patchtst_conv1dgap")
     parser.add_argument("--output-dir", type=Path, default=ROOT / "outputs" / "snr_threshold_metrics")
     parser.add_argument("--models", default="moment_official,patchtst_pretrained,conv1dgap_same_input_3class")

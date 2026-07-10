@@ -71,8 +71,8 @@ def main() -> None:
     parser.add_argument("--max-samples", type=int, default=8)
     parser.add_argument("--configs", default=None, help="Comma-separated patch/stride pairs, e.g. 4/4,4/2,8/8")
     parser.add_argument("--input-length-raw", type=int, default=16384)
-    parser.add_argument("--decimation-factor", type=int, default=8)
-    parser.add_argument("--input-length-ssl", type=int, default=2048)
+    parser.add_argument("--decimation-factor", type=int, default=4)
+    parser.add_argument("--input-length-ssl", type=int, default=4096)
     parser.add_argument("--guard-points", type=int, default=8)
     parser.add_argument("--seed", type=int, default=42)
     args = parser.parse_args()
@@ -94,4 +94,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

@@ -48,8 +48,9 @@ def add_patch_stride_page(
 
     fig, axes = plt.subplots(4, 1, figsize=(14, 8), sharex=True, constrained_layout=True)
     x = np.arange(len(signal))
+    primary = " | primary full-window 4096" if len(signal) == 4096 and patch_size == 4 and patch_stride == 4 else ""
     axes[0].plot(x, signal, linewidth=0.8, color="black")
-    axes[0].set_title(f"{sample_id} | patch={patch_size}, stride={patch_stride}, tokens={spec.n_tokens}")
+    axes[0].set_title(f"{sample_id} | patch={patch_size}, stride={patch_stride}, tokens={spec.n_tokens}{primary}")
     axes[0].set_ylabel("signal")
     if event_mask is not None:
         for start, end in _event_spans_from_mask(event_mask):
@@ -105,4 +106,3 @@ def write_patch_stride_audit_pdf(
                     event_mask=np.asarray(event_mask, dtype=bool) if event_mask is not None else None,
                     seed=seed + sample_index,
                 )
-

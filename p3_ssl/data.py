@@ -20,6 +20,7 @@ class ManifestRow:
     signal_path: Path
     label_path: Path | None
     source_kind: str = "unknown"
+    metadata: dict[str, str] | None = None
 
 
 def _resolve_manifest_path(raw_path: str, manifest_path: Path) -> Path:
@@ -52,9 +53,28 @@ def read_manifest(path: str | Path, split: str | None = None) -> list[ManifestRo
                     signal_path=_resolve_manifest_path(signal, manifest_path),
                     label_path=_resolve_manifest_path(label, manifest_path) if label else None,
                     source_kind=raw.get("source_kind", "unknown"),
+                    metadata=dict(raw),
                 )
             )
     return rows
+
+
+PHYSICS_PARAM_COLUMNS = ("A", "fD_khz", "phi_rad", "t0_fraction", "tau_ms", "snr_db")
+
+
+def physics_params_from_row(row: ManifestRow) -> tuple[np.ndarray, bool]:
+    metadata = row.metadata or {}
+    values: list[float] = []
+    has_any = False
+    for key in PHYSICS_PARAM_COLUMNS:
+        raw = metadata.get(key, "")
+        try:
+            value = float(raw)
+            has_any = has_any or np.isfinite(value)
+        except (TypeError, ValueError):
+            value = np.nan
+        values.append(value)
+    return np.asarray(values, dtype=np.float32), has_any
 
 
 def parse_yolo_1d_labels(path: str | Path | None) -> np.ndarray:
@@ -96,8 +116,8 @@ class SSLManifestDataset(Dataset[dict[str, Any]]):
         manifest_csv: str | Path,
         split: str = "train",
         input_length_raw: int = 16384,
-        decimation_factor: int = 8,
-        input_length_ssl: int = 2048,
+        decimation_factor: int = 4,
+        input_length_ssl: int = 4096,
         normalization: str = "window_zscore",
         patch_size: int = 4,
         patch_stride: int = 4,
@@ -106,9 +126,24 @@ class SSLManifestDataset(Dataset[dict[str, Any]]):
         min_block_length: int = 24,
         max_block_length: int = 128,
         high_derivative_probability: float = 0.25,
+        event_biased_probability: float = 0.0,
+        avoid_fully_hidden_events: bool = False,
+        max_event_hidden_fraction: float | None = None,
+        max_mask_attempts: int = 1,
         decimation_method: str = "mean",
         seed: int = 42,
     ) -> None:
+        if input_length_raw % input_length_ssl != 0:
+            raise ValueError(
+                "input_length_raw must be divisible by input_length_ssl: "
+                f"{input_length_raw} % {input_length_ssl} != 0"
+            )
+        expected_decimation = input_length_raw // input_length_ssl
+        if decimation_factor != expected_decimation:
+            raise ValueError(
+                "decimation_factor must match input_length_raw // input_length_ssl: "
+                f"got {decimation_factor}, expected {expected_decimation}"
+            )
         self.rows = read_manifest(manifest_csv, split=split)
         if not self.rows:
             raise ValueError(f"No rows found for split={split} in {manifest_csv}")
@@ -122,6 +157,10 @@ class SSLManifestDataset(Dataset[dict[str, Any]]):
         self.min_block_length = min_block_length
         self.max_block_length = max_block_length
         self.high_derivative_probability = high_derivative_probability
+        self.event_biased_probability = event_biased_probability
+        self.avoid_fully_hidden_events = avoid_fully_hidden_events
+        self.max_event_hidden_fraction = max_event_hidden_fraction
+        self.max_mask_attempts = max_mask_attempts
         self.decimation_method = decimation_method
         self.seed = seed
 
@@ -139,6 +178,9 @@ class SSLManifestDataset(Dataset[dict[str, Any]]):
     def __getitem__(self, idx: int) -> dict[str, Any]:
         row = self.rows[idx]
         signal = self._load_signal(row.signal_path)
+        labels = parse_yolo_1d_labels(row.label_path)
+        event_mask = labels_to_event_mask(labels, self.input_length_ssl)
+        physics_params, has_physics_params = physics_params_from_row(row)
         rng = np.random.default_rng(self.seed + idx + int(torch.randint(0, 2**16, ()).item()))
         masks = build_ssl_masks(
             signal=signal,
@@ -149,17 +191,25 @@ class SSLManifestDataset(Dataset[dict[str, Any]]):
             max_block_length=self.max_block_length,
             guard_points=self.guard_points,
             high_derivative_probability=self.high_derivative_probability,
+            event_mask=event_mask,
+            event_biased_probability=self.event_biased_probability,
+            avoid_fully_hidden_events=self.avoid_fully_hidden_events,
+            max_event_hidden_fraction=self.max_event_hidden_fraction,
+            max_mask_attempts=self.max_mask_attempts,
         )
-        labels = parse_yolo_1d_labels(row.label_path)
-        event_mask = labels_to_event_mask(labels, self.input_length_ssl)
+        token_time_mask = masks["token_time_mask"]
         return {
             "signal": torch.from_numpy(signal).float().unsqueeze(0),
             "target": torch.from_numpy(signal).float().unsqueeze(0),
             "target_time_mask": torch.from_numpy(masks["target_time_mask"]).bool(),
             "hidden_time_mask": torch.from_numpy(masks["hidden_time_mask"]).bool(),
             "token_mask": torch.from_numpy(masks["token_mask"]).bool(),
+            "token_time_mask": torch.from_numpy(token_time_mask).bool(),
             "event_mask": torch.from_numpy(event_mask).bool(),
+            "physics_params": torch.from_numpy(physics_params).float(),
+            "has_physics_params": torch.as_tensor(has_physics_params).bool(),
+            "mask_attempts": torch.as_tensor(masks["mask_attempts"]).long(),
+            "mask_accepted": torch.as_tensor(masks["mask_accepted"]).bool(),
             "sample_id": row.sample_id,
             "source_kind": row.source_kind,
         }
-

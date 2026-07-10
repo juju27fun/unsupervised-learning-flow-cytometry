@@ -10,7 +10,7 @@ import torch.nn.functional as F
 
 @dataclass(frozen=True)
 class MomentLikeConfig:
-    input_length: int = 2048
+    input_length: int = 4096
     patch_size: int = 4
     patch_stride: int = 4
     d_model: int = 128
@@ -109,6 +109,20 @@ class MomentLikeReconstructor(nn.Module):
         patches = self.reconstruction_head(encoded)
         return self.unpatchify(patches)
 
+    def global_embedding(
+        self,
+        x: torch.Tensor,
+        token_mask: torch.Tensor | None = None,
+        pool: str = "mean",
+    ) -> torch.Tensor:
+        """Return one fixed-width encoder embedding per signal."""
+        encoded = self.encode(x, token_mask=token_mask)
+        if pool == "mean":
+            return encoded.mean(dim=1)
+        if pool == "max":
+            return encoded.max(dim=1).values
+        raise ValueError(f"Unsupported embedding pool: {pool}")
+
     def encoder_state_dict(self) -> dict[str, torch.Tensor]:
         keys = ("patch_embed.", "encoder.", "mask_token")
         return {k: v for k, v in self.state_dict().items() if k.startswith(keys) or k == "mask_token"}
@@ -134,4 +148,3 @@ class TinyTCNAutoencoder(nn.Module):
         if x.ndim == 2:
             x = x.unsqueeze(1)
         return self.net(x)
-

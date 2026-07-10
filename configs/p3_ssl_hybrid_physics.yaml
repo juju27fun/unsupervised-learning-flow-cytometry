@@ -1,0 +1,163 @@
+experiment:
+  name: p3_ssl_hybrid_physics
+  objective: hybrid_masked_reconstruction_physical_contrastive
+  seed: 42
+
+paths:
+  output_root: P3_SSL/outputs/runs
+
+simulation:
+  n_synthetic:
+    smoke: 100
+    full: 3000
+    long: 20000
+  source: internal
+  particles2snr_event_manifest: particles2SNR_pipeline/output/p0_c1_Particles2SNR_F/event_classification_dataset/event_manifest.csv
+  include_two_particle: true
+  normalization: none
+
+hybrid_sampling:
+  synthetic_fraction_pretrain: 0.70
+  synthetic_fraction_adaptation: 0.30
+  max_real_rows:
+    smoke: 100
+    full: null
+    long: null
+
+data:
+  input_length_raw: 16384
+  decimation_factor: 4
+  input_length_ssl: 4096
+  normalization: window_zscore
+  split_train: train
+  split_val: val
+  split_test: test
+
+patching:
+  patch_size: 4
+  patch_stride: 4
+  guard_points: 8
+
+masking:
+  policy: block_time_mask_with_guard
+  mask_ratio: 0.25
+  min_block_length: 24
+  max_block_length: 128
+  event_biased_probability: 0.35
+  high_derivative_probability: 0.25
+  avoid_fully_hidden_events: true
+  max_event_hidden_fraction: 0.75
+  max_mask_attempts: 64
+
+model:
+  d_model: 128
+  n_heads: 4
+  n_layers: 4
+  dim_feedforward: 512
+  dropout: 0.10
+  activation: gelu
+  max_tokens: 1024
+  embedding_pool: mean
+
+reconstruction_loss:
+  lambda_signal: 1.0
+  lambda_derivative: 0.2
+  lambda_energy: 0.05
+  huber_delta: 1.0
+
+contrastive_loss:
+  weight: 0.10
+  positive_distance: 0.18
+  negative_distance: 0.55
+  margin: 1.0
+
+invariance_loss:
+  weight: 0.05
+  noise_std_fraction: 0.05
+  max_shift_points: 8
+  amplitude_scale_min: 0.90
+  amplitude_scale_max: 1.10
+  phase_jitter_rad: 0.05
+
+physics_metrics:
+  k_neighbors: 5
+  pass_threshold: 0.05
+
+baseline_assessment:
+  enabled: true
+  reconstruction_only_checkpoint: P3_SSL/outputs/runs/event_coherent_30min_20260623/reconstruction/checkpoints/best.pt
+  reconstruction_only_model_name: p3_ssl_reconstruction_only
+  sweep_dir:
+    smoke: P3_SSL/outputs/particle_equation_latent_sweeps/smoke_single
+    full: P3_SSL/outputs/particle_equation_latent_sweeps/single_n1800
+    long: P3_SSL/outputs/particle_equation_latent_sweeps/single_n1800
+  max_combined_samples:
+    smoke: 2000
+    full: 2000
+    long: 4000
+  random_seed: 123
+
+classic_assessment:
+  enabled: true
+  max_real_rows:
+    smoke: 100
+    full: 1000
+    long: 2000
+  max_events_per_class:
+    smoke: 40
+    full: 500
+    long: 800
+  label_fractions:
+    smoke: [0.50, 1.0]
+    full: [0.01, 0.05, 0.10, 0.25, 1.0]
+    long: [0.01, 0.05, 0.10, 0.25, 1.0]
+  probe_repeats:
+    smoke: 1
+    full: 5
+    long: 5
+  retrieval_queries_per_class: 2
+  retrieval_neighbors: 5
+  retrieval_metric_max_per_class:
+    smoke: 80
+    full: 500
+    long: 800
+  run_tsne:
+    smoke: true
+    full: true
+    long: true
+
+robustness_metrics:
+  perturbations:
+    - noise_0p10
+    - scale_1p25
+    - shift_8
+    - center_mask_64
+  max_real_samples:
+    smoke: 48
+    full: 256
+    long: 512
+
+real_adaptation:
+  enabled: true
+  epochs:
+    smoke: 1
+    full: 10
+    long: 20
+  max_reconstruction_regression_fraction: 0.25
+  reconstruction_reference_root: P3_SSL/outputs/runs/event_coherent_30min_20260623
+
+training:
+  optimizer: adamw
+  lr: 0.0003
+  weight_decay: 0.01
+  batch_size:
+    smoke: 8
+    full: 32
+    long: 64
+  epochs:
+    smoke: 1
+    full: 20
+    long: 80
+  num_workers: 0
+  amp: true
+  grad_clip_norm: 1.0

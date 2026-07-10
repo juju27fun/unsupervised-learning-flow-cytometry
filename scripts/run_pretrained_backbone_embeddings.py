@@ -247,7 +247,9 @@ def build_conv1dgap_native_signals(args: argparse.Namespace, events: list[Partic
 
 
 def select_model_signals(args: argparse.Namespace, model_key: str, signals: np.ndarray, events: list[ParticleEvent]) -> np.ndarray:
-    if model_key != "conv1dgap_4class" or args.conv1dgap_input_mode == "event_crop_512":
+    if getattr(args, "conv1dgap_input_mode", "") == "event_crop_512":
+        args.conv1dgap_input_mode = "event_crop"
+    if model_key != "conv1dgap_4class" or args.conv1dgap_input_mode == "event_crop":
         return signals
     if args.conv1dgap_input_mode == "native_p0":
         return build_conv1dgap_native_signals(args, events)
@@ -475,8 +477,8 @@ def plot_pretrained_model_comparison(
     add_class_legend(fig, legend_artists, y=0.095)
     caption = (
         "Event-level latent spaces on Particles2SNR C1 4-class labels. "
-        "MOMENT uses its official pretrained 512 / patch 8 / stride 8 setup; "
-        "PatchTST uses the HF self-supervised checkpoint setup 512 / patch 12 / stride 12 "
+        "MOMENT is instantiated on the configured P3 event length with patch 8 / stride 8; "
+        "PatchTST uses the HF self-supervised checkpoint weights with patch 12 / stride 12 "
         "(the paper forecasting variant is patch 16 / stride 8). "
         "Conv1D-GAP is a local supervised CNN baseline using its configured P0-style input."
     )
@@ -531,7 +533,6 @@ def patchtst_native_metadata(model) -> dict[str, Any]:
     patch_length = patchtst_config_value(config, "patch_length")
     patch_stride = patchtst_config_value(config, "patch_stride")
     expected = {
-        "context_length": PATCHTST_PRETRAIN_CONTEXT_LENGTH,
         "patch_length": PATCHTST_PRETRAIN_PATCH_LENGTH,
         "patch_stride": PATCHTST_PRETRAIN_PATCH_STRIDE,
     }
@@ -540,13 +541,15 @@ def patchtst_native_metadata(model) -> dict[str, Any]:
         "patch_length": int(patch_length),
         "patch_stride": int(patch_stride),
     }
-    if actual != expected:
+    actual_patch = {key: actual[key] for key in ("patch_length", "patch_stride")}
+    if actual_patch != expected:
         raise ValueError(
             "PatchTST checkpoint config does not match the self-supervised pretrained setup: "
-            f"expected {expected}, got {actual}"
+            f"expected {expected}, got {actual_patch}"
         )
     return {
         **actual,
+        "pretrained_context_length": PATCHTST_PRETRAIN_CONTEXT_LENGTH,
         "num_input_channels": int(config.num_input_channels),
         "paper_forecasting_patch_length": PATCHTST_FORECASTING_PAPER_PATCH_LENGTH,
         "paper_forecasting_patch_stride": PATCHTST_FORECASTING_PAPER_PATCH_STRIDE,
@@ -554,7 +557,8 @@ def patchtst_native_metadata(model) -> dict[str, Any]:
         "used_pretraining_patch_stride": PATCHTST_PRETRAIN_PATCH_STRIDE,
         "native_parameter_note": (
             "This checkpoint follows the PatchTST masked-representation/pretraining setup "
-            "(512 context, patch 12, stride 12). The paper's forecasting variants use patch 16, stride 8."
+            "(pretrained context 512, patch 12, stride 12); P3 may instantiate a longer context "
+            "when using longer event inputs. The paper's forecasting variants use patch 16, stride 8."
         ),
     }
 
@@ -587,26 +591,26 @@ def load_encoder(
     output_dir: Path,
     args: argparse.Namespace,
 ):
+    if getattr(args, "conv1dgap_input_mode", "") == "event_crop_512":
+        args.conv1dgap_input_mode = "event_crop"
     if model_key == "moment_official":
         model = load_moment_official_model(model_id=model_id, cache_dir=cache_dir, device=device, seq_len=args.event_length)
-        if int(args.event_length) != 512:
-            raise ValueError("Official MOMENT pretrained comparison expects --event-length 512")
         return model, {
             "source_model_id": model_id,
-            "input_representation": "512-sample event crop, MOMENT RevIN internal normalization",
+            "input_representation": f"{int(args.event_length)}-sample P3 canonical event input, MOMENT RevIN internal normalization",
             "seq_len": int(args.event_length),
             "patch_len": MOMENT_OFFICIAL_PATCH_LEN,
             "patch_stride_len": MOMENT_OFFICIAL_PATCH_STRIDE,
-            "native_parameter_note": "Official MOMENT-1-large pretrained embedding path uses seq_len 512 and patch 8/8.",
+            "native_parameter_note": "Official MOMENT-1-large is instantiated with the requested P3 event length and patch 8/8.",
         }
     if model_key == "patchtst_pretrained":
-        model, report = load_patchtst_1ch_model(model_id=model_id, cache_dir=cache_dir, device=device)
+        model, report = load_patchtst_1ch_model(model_id=model_id, cache_dir=cache_dir, device=device, context_length=args.event_length)
         save_transfer_report(output_dir / "patchtst_weight_transfer_report.json", report)
         metadata = {**asdict(report), **patchtst_native_metadata(model)}
-        metadata["input_representation"] = "512-sample event crop, 1-channel PatchTST input, HF pretrained weights transferred from source channels"
+        metadata["input_representation"] = f"{int(args.event_length)}-sample P3 canonical event input, 1-channel PatchTST input, HF pretrained weights transferred from source channels"
         return model, metadata
     if model_key == "conv1dgap_4class":
-        input_length = int(args.event_length) if args.conv1dgap_input_mode == "event_crop_512" else int(args.conv1dgap_input_length)
+        input_length = int(args.event_length) if args.conv1dgap_input_mode == "event_crop" else int(args.conv1dgap_input_length)
         model = load_conv1dgap_4class_model(
             args.conv1dgap_checkpoint,
             device=device,
@@ -631,7 +635,7 @@ def load_encoder(
                 }
             )
         else:
-            metadata["input_representation"] = "512-sample event crop, P3 window_zscore normalization"
+            metadata["input_representation"] = f"{int(args.event_length)}-sample P3 canonical event input, window_zscore normalization"
         return model, metadata
     if model_key == "swin2d_pretrained":
         model = load_swin_model(model_id=model_id, cache_dir=cache_dir, device=device)
@@ -775,7 +779,7 @@ def main() -> None:
     parser.add_argument("--swin-model-id", default=SWIN_DEFAULT_ID)
     parser.add_argument("--conv1dgap-checkpoint", type=Path, default=CONV1DGAP_DEFAULT_CHECKPOINT)
     parser.add_argument("--conv1dgap-model-name", default="Conv1DGAP")
-    parser.add_argument("--conv1dgap-input-mode", choices=["native_p0", "event_crop_512"], default="native_p0")
+    parser.add_argument("--conv1dgap-input-mode", choices=["native_p0", "event_crop", "event_crop_512"], default="native_p0")
     parser.add_argument("--conv1dgap-input-length", type=int, default=4096)
     parser.add_argument("--conv1dgap-native-length", type=int, default=16384)
     parser.add_argument("--conv1dgap-bandpass-low-khz", type=float, default=5.0)
@@ -783,9 +787,9 @@ def main() -> None:
     parser.add_argument("--conv1dgap-sample-rate-mhz", type=float, default=2.0)
     parser.add_argument("--cache-dir", type=Path, default=ROOT / "outputs" / "hf_cache")
     parser.add_argument("--input-length-raw", type=int, default=16384)
-    parser.add_argument("--decimation-factor", type=int, default=8)
-    parser.add_argument("--input-length-ssl", type=int, default=2048)
-    parser.add_argument("--event-length", type=int, default=512)
+    parser.add_argument("--decimation-factor", type=int, default=4)
+    parser.add_argument("--input-length-ssl", type=int, default=4096)
+    parser.add_argument("--event-length", type=int, default=4096)
     parser.add_argument("--normalization", default="window_zscore")
     parser.add_argument("--max-events-per-class", type=int, default=None)
     parser.add_argument("--include-class-names", default=None, help="Optional comma-separated class names to keep and remap in that order, e.g. 2um,4um,10um.")
@@ -799,6 +803,8 @@ def main() -> None:
     parser.add_argument("--full-lr", type=float, default=2.0e-5)
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     args = parser.parse_args()
+    if args.conv1dgap_input_mode == "event_crop_512":
+        args.conv1dgap_input_mode = "event_crop"
 
     set_seed(args.seed)
     events, signals = collect_particle_events(

@@ -19,6 +19,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from p3_ssl.decimation import decimate_signal, ensure_1d_signal, normalize_signal
+from p3_ssl.signal_preprocessing import PREPROCESS_MODES, PREPROCESS_NONE, PREPROCESS_P1, P1PreprocessConfig, preprocess_signal, signal_quality_report, summarize_quality_reports
 
 
 @dataclass(frozen=True)
@@ -44,7 +45,7 @@ class YeastDetectionConfig:
     min_width_ms: float = 0.06
     max_width_ms: float = 1.60
     raw_crop_length: int = 4096
-    output_length: int = 512
+    output_length: int = 4096
     max_events_per_signal: int = 3
     class_id: int = 3
     class_name: str = "yeast"
@@ -120,17 +121,35 @@ def crop_around_index(raw: np.ndarray, crop_length: int, center_index: int) -> n
     return crop
 
 
+def build_aligned_signal_at_center(
+    raw: np.ndarray,
+    center_index: int,
+    raw_crop_length: int = 4096,
+    output_length: int = 4096,
+    preprocess_config: P1PreprocessConfig | None = None,
+) -> np.ndarray:
+    if int(raw_crop_length) % int(output_length) != 0:
+        raise ValueError("raw_crop_length must be divisible by output_length")
+    crop = crop_around_index(raw, raw_crop_length, int(center_index))
+    if preprocess_config is not None and preprocess_config.mode != PREPROCESS_NONE:
+        return preprocess_signal(crop, output_length=int(output_length), cfg=preprocess_config)
+    decimated = decimate_signal(crop, int(raw_crop_length) // int(output_length), method="mean")
+    return normalize_signal(decimated, mode="window_zscore").astype(np.float32, copy=False)
+
+
 def build_aligned_512_signal_at_center(
     raw: np.ndarray,
     center_index: int,
     raw_crop_length: int = 4096,
     output_length: int = 512,
 ) -> np.ndarray:
-    if int(raw_crop_length) % int(output_length) != 0:
-        raise ValueError("raw_crop_length must be divisible by output_length")
-    crop = crop_around_index(raw, raw_crop_length, int(center_index))
-    decimated = decimate_signal(crop, int(raw_crop_length) // int(output_length), method="mean")
-    return normalize_signal(decimated, mode="window_zscore").astype(np.float32, copy=False)
+    return build_aligned_signal_at_center(
+        raw,
+        center_index=center_index,
+        raw_crop_length=raw_crop_length,
+        output_length=output_length,
+        preprocess_config=None,
+    )
 
 
 def _group_active_frames(active: np.ndarray, max_gap_frames: int) -> list[tuple[int, int]]:
@@ -520,8 +539,8 @@ def write_audit_pdf(path: Path, events: list[YeastEvent], signals: np.ndarray, m
             axes[1].set_title("Raw crop around selected passage")
 
             axes[2].plot(signals[idx], color="black", linewidth=0.8)
-            axes[2].set_title("P3 input: raw 4096 -> mean decimate by 8 -> 512 -> window z-score")
-            axes[2].set_xlabel("512-sample index")
+            axes[2].set_title(f"P3 input: raw {event.crop_end - event.crop_start} -> {signals.shape[1]} -> window z-score")
+            axes[2].set_xlabel(f"{signals.shape[1]}-sample index")
             for ax in axes:
                 ax.grid(False)
             pdf.savefig(fig)
@@ -529,6 +548,20 @@ def write_audit_pdf(path: Path, events: list[YeastEvent], signals: np.ndarray, m
 
 
 def build_dataset(args: argparse.Namespace) -> dict[str, Any]:
+    preprocess_mode = str(getattr(args, "preprocess_mode", PREPROCESS_NONE))
+    preprocess_config = P1PreprocessConfig(
+        mode=preprocess_mode,
+        sampling_frequency_hz=float(args.sampling_frequency_hz),
+        low_khz=float(getattr(args, "preprocess_low_khz", 5.0)),
+        high_khz_max=float(getattr(args, "preprocess_high_khz_max", 100.0)),
+        saturation_fmin_hz=float(getattr(args, "saturation_fmin_hz", 7_000.0)),
+        saturation_fmax_hz=float(getattr(args, "saturation_fmax_hz", 80_000.0)),
+        saturation_min_flat=int(getattr(args, "saturation_min_flat", 500)),
+        saturation_zero_threshold=float(getattr(args, "saturation_zero_threshold", 1.0e-4)),
+        saturation_guard_before=int(getattr(args, "saturation_guard_before", 0)),
+        saturation_guard_after=int(getattr(args, "saturation_guard_after", 0)),
+        normalization="window_zscore",
+    )
     config = YeastDetectionConfig(
         sampling_frequency_hz=args.sampling_frequency_hz,
         low_freq_hz=args.low_freq_hz,
@@ -568,6 +601,7 @@ def build_dataset(args: argparse.Namespace) -> dict[str, Any]:
     kept_events: list[YeastEvent] = []
     reports: list[FileDetectionReport] = []
     aligned_signals: list[np.ndarray] = []
+    preprocess_reports: list[dict[str, Any]] = []
 
     for path in paths:
         source_group = path.parent.name
@@ -582,22 +616,31 @@ def build_dataset(args: argparse.Namespace) -> dict[str, Any]:
         )
         all_candidates.extend(candidates)
         selected = [event for event in candidates if keep_event_for_quality(event, args.quality)]
+        selected_kept = 0
         for event in selected:
+            crop = crop_around_index(raw, args.raw_crop_length, event.center_index)
+            report = signal_quality_report(crop, preprocess_config)
+            report.update({"event_id": event.event_id, "signal_path": str(path)})
+            preprocess_reports.append(report)
+            if preprocess_config.mode == PREPROCESS_P1 and not report["ok"]:
+                continue
             aligned_signals.append(
-                build_aligned_512_signal_at_center(
+                build_aligned_signal_at_center(
                     raw,
                     center_index=event.center_index,
                     raw_crop_length=args.raw_crop_length,
                     output_length=args.output_length,
+                    preprocess_config=preprocess_config,
                 )
             )
-        kept_events.extend(selected)
+            kept_events.append(event)
+            selected_kept += 1
         reports.append(
             FileDetectionReport(
                 signal_path=str(path),
                 source_group=source_group,
                 n_candidates=int(len(candidates)),
-                n_kept=int(len(selected)),
+                n_kept=int(selected_kept),
                 rejection_reason=reason if reason else "",
             )
         )
@@ -621,14 +664,21 @@ def build_dataset(args: argparse.Namespace) -> dict[str, Any]:
     write_event_rows(args.output_dir / "visual_events_metadata.csv", visual_events)
     write_detection_reports(args.output_dir / "file_detection_report.csv", reports)
     np.savez_compressed(
-        args.output_dir / "aligned_512_inputs.npz",
+        args.output_dir / "aligned_inputs.npz",
         signals=signals,
         labels=labels,
         split=split,
         event_id=event_ids,
         center_index=np.asarray([event.center_index for event in kept_events], dtype=np.int64),
         source_path=np.asarray([event.signal_path for event in kept_events]),
+        preprocessing_id=np.asarray(preprocess_config.preprocessing_id),
     )
+    preprocessing_summary = summarize_quality_reports(preprocess_reports)
+    preprocessing_summary["preprocessing"] = preprocess_config.to_dict()
+    preprocessing_summary["kept_events_after_preprocessing"] = int(len(kept_events))
+    preprocessing_summary["rejected_events_after_preprocessing"] = int(len(preprocess_reports) - len(kept_events))
+    with (args.output_dir / "preprocessing_summary.json").open("w") as f:
+        json.dump(preprocessing_summary, f, indent=2, sort_keys=True)
 
     summary = {
         "input_dir": str(args.input_dir),
@@ -646,7 +696,11 @@ def build_dataset(args: argparse.Namespace) -> dict[str, Any]:
                 for reason in sorted(set(report.rejection_reason for report in reports if report.rejection_reason))
             },
         },
-        "input_representation_all_models": "center on detected yeast passage -> crop raw 4096 -> mean decimate by 8 -> 512 -> window_zscore",
+        "preprocessing": preprocessing_summary,
+        "input_representation_all_models": (
+            f"center on detected yeast passage -> crop raw {int(args.raw_crop_length)} -> "
+            f"{int(args.output_length)} -> {preprocess_config.preprocessing_id}"
+        ),
     }
     with (args.output_dir / "detection_summary.json").open("w") as f:
         json.dump(summary, f, indent=2, sort_keys=True)
@@ -659,7 +713,7 @@ def build_dataset(args: argparse.Namespace) -> dict[str, Any]:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Build P3-compatible yeast event crops from multi-Doppler passage detections.")
     parser.add_argument("--input-dir", type=Path, default=Path("/home/intern/Downloads/Yeast_folder"))
-    parser.add_argument("--output-dir", type=Path, default=ROOT / "outputs" / "pretrained_backbones" / "yeast_passage_events_p3_512")
+    parser.add_argument("--output-dir", type=Path, default=ROOT / "outputs" / "pretrained_backbones" / "yeast_passage_events_p3_4096")
     parser.add_argument("--include-groups", default="", help="Optional comma-separated source folders, e.g. budding,shmoo,shmoo2,mix.")
     parser.add_argument("--quality", choices=("strict", "medium", "all"), default="strict")
     parser.add_argument("--split", default="test")
@@ -691,7 +745,16 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--min-width-ms", type=float, default=0.06)
     parser.add_argument("--max-width-ms", type=float, default=1.60)
     parser.add_argument("--raw-crop-length", type=int, default=4096)
-    parser.add_argument("--output-length", type=int, default=512)
+    parser.add_argument("--output-length", type=int, default=4096)
+    parser.add_argument("--preprocess-mode", choices=PREPROCESS_MODES, default=PREPROCESS_NONE)
+    parser.add_argument("--preprocess-low-khz", type=float, default=5.0)
+    parser.add_argument("--preprocess-high-khz-max", type=float, default=100.0)
+    parser.add_argument("--saturation-fmin-hz", type=float, default=7_000.0)
+    parser.add_argument("--saturation-fmax-hz", type=float, default=80_000.0)
+    parser.add_argument("--saturation-min-flat", type=int, default=500)
+    parser.add_argument("--saturation-zero-threshold", type=float, default=1.0e-4)
+    parser.add_argument("--saturation-guard-before", type=int, default=0)
+    parser.add_argument("--saturation-guard-after", type=int, default=0)
     parser.add_argument("--write-audit", action="store_true")
     parser.add_argument("--audit-max-events", type=int, default=48)
     return parser

@@ -362,7 +362,7 @@ def main() -> None:
         length = int(args.input_length or config["data"]["input_length_ssl"])
         normalization = str(config["data"].get("normalization", "window_zscore"))
     else:
-        length = int(args.input_length or 512)
+        length = int(args.input_length or 4096)
 
     panels = generate_synthetic_panels(args.n_per_panel, length, args.seed, noise_std=args.noise_std)
 
@@ -438,4 +438,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

@@ -8,8 +8,8 @@ paths:
 
 data:
   input_length_raw: 16384
-  decimation_factor: 8
-  input_length_ssl: 2048
+  decimation_factor: 4
+  input_length_ssl: 4096
   normalization: window_zscore
   split_train: train
   split_val: val
@@ -26,6 +26,9 @@ masking:
   max_block_length: 128
   event_biased_probability: 0.35
   high_derivative_probability: 0.25
+  avoid_fully_hidden_events: true
+  max_event_hidden_fraction: 0.75
+  max_mask_attempts: 64
 
 model:
   d_model: 128
@@ -69,4 +72,3 @@ audit:
       patch_stride: 4
     - patch_size: 16
       patch_stride: 8
-

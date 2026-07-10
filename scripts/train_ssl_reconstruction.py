@@ -16,7 +16,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from p3_ssl.config import load_config
+from p3_ssl.config import load_config, validate_ssl_config
 from p3_ssl.data import SSLManifestDataset, read_manifest
 from p3_ssl.losses import composite_reconstruction_loss
 from p3_ssl.metrics import reconstruction_metrics
@@ -32,6 +32,7 @@ def set_seed(seed: int) -> None:
 
 
 def make_dataset(config: dict, manifest: Path, split: str) -> SSLManifestDataset:
+    validate_ssl_config(config)
     data = config["data"]
     patching = config["patching"]
     masking = config["masking"]
@@ -49,11 +50,20 @@ def make_dataset(config: dict, manifest: Path, split: str) -> SSLManifestDataset
         min_block_length=int(masking.get("min_block_length", 24)),
         max_block_length=int(masking.get("max_block_length", 128)),
         high_derivative_probability=float(masking.get("high_derivative_probability", 0.25)),
+        event_biased_probability=float(masking.get("event_biased_probability", 0.0)),
+        avoid_fully_hidden_events=bool(masking.get("avoid_fully_hidden_events", False)),
+        max_event_hidden_fraction=(
+            None
+            if masking.get("max_event_hidden_fraction") is None
+            else float(masking["max_event_hidden_fraction"])
+        ),
+        max_mask_attempts=int(masking.get("max_mask_attempts", 1)),
         seed=int(config["experiment"].get("seed", 42)),
     )
 
 
 def make_model(config: dict) -> MomentLikeReconstructor:
+    validate_ssl_config(config)
     model_cfg = config["model"]
     data_cfg = config["data"]
     patch_cfg = config["patching"]
@@ -182,4 +192,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

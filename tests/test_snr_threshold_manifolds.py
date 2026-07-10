@@ -69,7 +69,7 @@ def test_real_particle_snr_join_is_complete_when_artifacts_exist() -> None:
 
 
 def test_real_yeast_metadata_uses_requested_three_classes_when_available() -> None:
-    yeast_root = ROOT / "outputs" / "pretrained_backbones" / "yeast_passage_events_p3_512"
+    yeast_root = ROOT / "outputs" / "pretrained_backbones" / "yeast_passage_events_p3_4096"
     if not yeast_root.exists():
         pytest.skip("Yeast event artifacts are not available")
 

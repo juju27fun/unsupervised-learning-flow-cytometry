@@ -77,10 +77,10 @@ def crop_around_center(raw: np.ndarray, crop_length: int, center_index: int) -> 
     return crop
 
 
-def build_aligned_512_signal(
+def build_aligned_signal(
     raw: np.ndarray,
     raw_crop_length: int = 4096,
-    output_length: int = 512,
+    output_length: int = 4096,
     center_offset: int = 0,
     amplitude_scale: float = 1.0,
     noise_snr_db: float | None = None,
@@ -102,6 +102,26 @@ def build_aligned_512_signal(
     return normalize_signal(decimated, mode="window_zscore").astype(np.float32, copy=False)
 
 
+def build_aligned_512_signal(
+    raw: np.ndarray,
+    raw_crop_length: int = 4096,
+    output_length: int = 512,
+    center_offset: int = 0,
+    amplitude_scale: float = 1.0,
+    noise_snr_db: float | None = None,
+    rng: np.random.Generator | None = None,
+) -> np.ndarray:
+    return build_aligned_signal(
+        raw,
+        raw_crop_length=raw_crop_length,
+        output_length=output_length,
+        center_offset=center_offset,
+        amplitude_scale=amplitude_scale,
+        noise_snr_db=noise_snr_db,
+        rng=rng,
+    )
+
+
 def load_particles2snr_f_events(data_dir: Path, raw_crop_length: int, output_length: int) -> tuple[list[ParticleEvent], np.ndarray, np.ndarray]:
     events: list[ParticleEvent] = []
     signals: list[np.ndarray] = []
@@ -113,7 +133,7 @@ def load_particles2snr_f_events(data_dir: Path, raw_crop_length: int, output_len
                 raise FileNotFoundError(f"Missing class directory: {class_dir}")
             for path in sorted(class_dir.glob("*.npy")):
                 raw = np.load(path).astype(np.float32, copy=False)
-                signals.append(build_aligned_512_signal(raw, raw_crop_length=raw_crop_length, output_length=output_length))
+                signals.append(build_aligned_signal(raw, raw_crop_length=raw_crop_length, output_length=output_length))
                 labels.append(class_id)
                 events.append(
                     ParticleEvent(
@@ -152,6 +172,12 @@ def balanced_visual_indices(labels: np.ndarray, max_per_class: int, seed: int) -
     return np.asarray(sorted(selected), dtype=np.int64)
 
 
+def balanced_event_indices(labels: np.ndarray, max_per_class: int, seed: int) -> np.ndarray:
+    if max_per_class <= 0:
+        return np.arange(labels.shape[0], dtype=np.int64)
+    return balanced_visual_indices(labels, max_per_class=max_per_class, seed=seed)
+
+
 def validate_no_test_leakage(source_splits: np.ndarray) -> None:
     leaks = np.flatnonzero(source_splits.astype(str) == "test")
     if leaks.size:
@@ -186,7 +212,7 @@ def materialize_conv_train_views(
             offset = int(rng.integers(-max_offset, max_offset + 1)) if max_offset > 0 else 0
             scale = float(rng.uniform(aug_scale_min, aug_scale_max))
             signals.append(
-                build_aligned_512_signal(
+                build_aligned_signal(
                     raw,
                     raw_crop_length=raw_crop_length,
                     output_length=output_length,
@@ -402,13 +428,17 @@ def run(args: argparse.Namespace) -> None:
     args.output_dir.mkdir(parents=True, exist_ok=True)
 
     events, signals, labels = load_particles2snr_f_events(args.data_dir, args.raw_crop_length, args.input_length)
+    keep_idx = balanced_event_indices(labels, args.max_events_per_class, args.seed)
+    events = [events[int(i)] for i in keep_idx]
+    signals = signals[keep_idx]
+    labels = labels[keep_idx]
     splits = split_indices(events)
     visual_idx = balanced_visual_indices(labels, args.max_plot_per_class, args.seed)
     visual_events = [events[int(i)] for i in visual_idx]
     visual_labels = labels[visual_idx]
     write_rows(args.output_dir / "events_metadata.csv", events)
     write_rows(args.output_dir / "visual_events_metadata.csv", visual_events)
-    np.savez_compressed(args.output_dir / "aligned_512_inputs.npz", signals=signals, labels=labels, split=np.asarray([e.split for e in events]))
+    np.savez_compressed(args.output_dir / "aligned_inputs.npz", signals=signals, labels=labels, split=np.asarray([e.split for e in events]))
 
     conv_dir = args.output_dir / CONV_MODEL_KEY
     conv_train = materialize_conv_train_views(
@@ -438,7 +468,7 @@ def run(args: argparse.Namespace) -> None:
                 "classes": list(CLASS_NAMES),
                 "n_events": len(events),
                 "visual_n_events": int(visual_idx.size),
-                "input_representation_all_models": "center crop raw 4096 -> mean decimate by 8 -> 512 -> window_zscore",
+                "input_representation_all_models": f"center crop raw {int(args.raw_crop_length)} -> {int(args.input_length)} -> window_zscore",
                 "conv1dgap_role": "supervised same-input CNN control, not a public pretrained zero-shot model",
                 "conv_model_name": args.conv_model_name,
                 "views_per_train_event": args.views_per_train_event,
@@ -480,7 +510,10 @@ def run(args: argparse.Namespace) -> None:
 
     model_dirs: dict[str, Path] = {}
     all_metrics: dict[str, Any] = {}
-    for model_key in MODEL_KEYS:
+    requested_models = [item.strip() for item in args.models.split(",") if item.strip()]
+    for model_key in requested_models:
+        if model_key not in MODEL_KEYS:
+            raise ValueError(f"Unsupported model {model_key}. Expected one of {sorted(MODEL_KEYS)}")
         model_dir = args.output_dir / model_key
         model_dir.mkdir(parents=True, exist_ok=True)
         if model_key == "moment_official":
@@ -493,7 +526,7 @@ def run(args: argparse.Namespace) -> None:
             metadata = {
                 "source_model_id": str(conv_dir / "best_model.pt"),
                 "model_name": args.conv_model_name,
-                "input_representation": "same 512-sample aligned tensor as MOMENT/PatchTST",
+                "input_representation": f"same {int(signals.shape[1])}-sample aligned tensor as MOMENT/PatchTST",
                 "input_length": int(signals.shape[1]),
                 "supervised_same_input_checkpoint": True,
                 "views_per_train_event": int(args.views_per_train_event),
@@ -564,9 +597,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--cache-dir", type=Path, default=ROOT / "outputs" / "hf_cache")
     parser.add_argument("--moment-model-id", default=MOMENT_DEFAULT_ID)
     parser.add_argument("--patchtst-model-id", default=PATCHTST_DEFAULT_ID)
-    parser.add_argument("--input-length", type=int, default=512)
+    parser.add_argument("--input-length", type=int, default=4096)
     parser.add_argument("--raw-crop-length", type=int, default=4096)
+    parser.add_argument("--max-events-per-class", type=int, default=0)
     parser.add_argument("--max-plot-per-class", type=int, default=500)
+    parser.add_argument("--models", default="moment_official,patchtst_pretrained,conv1dgap_same_input_3class")
     parser.add_argument("--batch-size", type=int, default=32)
     parser.add_argument("--conv-model-name", default="Conv1DGAP-L")
     parser.add_argument("--views-per-train-event", type=int, default=12)

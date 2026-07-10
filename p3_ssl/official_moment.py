@@ -18,7 +18,7 @@ DEFAULT_HF_CACHE = PROJECT_ROOT / "outputs" / "hf_cache"
 @dataclass(frozen=True)
 class OfficialMomentSpec:
     model_id: str = "AutonLab/MOMENT-1-large"
-    seq_len: int = 512
+    seq_len: int = 4096
     patch_len: int = 8
     patch_stride_len: int = 8
     n_channels: int = 1
@@ -42,7 +42,7 @@ def load_official_moment(
     device: torch.device | str = "cpu",
     cache_dir: Path | None = None,
     task_name: str = "pre-training",
-    seq_len: int = 512,
+    seq_len: int = 4096,
     n_channels: int = 1,
 ):
     configure_official_moment_paths(cache_dir)

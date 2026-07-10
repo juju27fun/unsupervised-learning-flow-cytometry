@@ -38,8 +38,8 @@ These paths are intentionally kept:
 
 | Path | Reason |
 | --- | --- |
-| `P3_SSL/outputs/synthetic_fig7/official_moment_n1800` | Current official MOMENT synthetic Figure 7 reference |
-| `P3_SSL/outputs/pretrained_backbones/zero_shot_n100_all` | Current shared zero-shot comparison output |
+| `P3_SSL/outputs/synthetic_fig7/official_moment_n1800` | Legacy 512-era official MOMENT synthetic Figure 7 reference |
+| `P3_SSL/outputs/pretrained_backbones/zero_shot_n100_all` | Legacy pretrained comparison output; 4096 runs should live under `outputs/pretrained_backbones-4096_YYYYMMDD/` |
 | `P3_SSL/outputs/hf_cache` | Hugging Face model cache; expensive to redownload |
 | `P3_SSL/vendor` | Local dependencies / cloned research code |
 | `P3_SSL/outputs/patch_stride_audit` | Useful patch/stride audit artifact |

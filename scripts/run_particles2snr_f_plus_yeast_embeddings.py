@@ -27,6 +27,7 @@ from run_particles2snr_f_3class_aligned_backbones import CONV_MODEL_KEY, balance
 
 CLASS_LABELS = {0: "2um", 1: "4um", 2: "10um", 3: "yeast"}
 MODEL_KEYS = ("moment_official", "patchtst_pretrained", CONV_MODEL_KEY)
+DEFAULT_PARTICLE_ROOT = ROOT / "outputs" / "pretrained_backbones" / "particles2snr_f_3class_same_input_conv1dgap_augmented_train"
 
 
 def configure_display_names() -> None:
@@ -64,7 +65,10 @@ def read_particle_events(path: Path) -> list[ParticleEvent]:
 
 def load_aligned_bundle(root: Path) -> tuple[list[ParticleEvent], np.ndarray, np.ndarray, np.ndarray]:
     events = read_particle_events(root / "events_metadata.csv")
-    with np.load(root / "aligned_512_inputs.npz", allow_pickle=True) as data:
+    aligned_path = root / "aligned_inputs.npz"
+    if not aligned_path.is_file():
+        aligned_path = root / "aligned_512_inputs.npz"
+    with np.load(aligned_path, allow_pickle=True) as data:
         signals = np.asarray(data["signals"], dtype=np.float32)
         labels = np.asarray(data["labels"], dtype=np.int64)
         split = np.asarray(data["split"]).astype(str)
@@ -79,6 +83,22 @@ def load_existing_embeddings(root: Path, model_key: str) -> np.ndarray:
         raise FileNotFoundError(f"Missing existing particle embeddings: {path}")
     with np.load(path, allow_pickle=True) as data:
         return np.asarray(data["embeddings"], dtype=np.float32)
+
+
+def subset_events(
+    events: list[ParticleEvent],
+    signals: np.ndarray,
+    labels: np.ndarray,
+    split: np.ndarray,
+    max_events: int,
+    seed: int,
+) -> tuple[list[ParticleEvent], np.ndarray, np.ndarray, np.ndarray]:
+    if max_events <= 0 or labels.shape[0] <= max_events:
+        return events, signals, labels, split
+    rng = np.random.default_rng(seed)
+    idx = rng.choice(np.arange(labels.shape[0], dtype=np.int64), size=max_events, replace=False)
+    idx.sort()
+    return [events[int(i)] for i in idx], signals[idx], labels[idx], split[idx]
 
 
 def load_conv1dgap_3class_model(checkpoint_path: Path, model_name: str, input_length: int, device: torch.device) -> torch.nn.Module:
@@ -111,7 +131,7 @@ def encode_yeast_embeddings(
         metadata = {
             "source_model_id": str(args.conv_checkpoint),
             "model_name": args.conv_model_name,
-            "input_representation": "same 512-sample aligned tensor as MOMENT/PatchTST",
+            "input_representation": f"same {int(yeast_signals.shape[1])}-sample aligned tensor as MOMENT/PatchTST",
             "input_length": int(yeast_signals.shape[1]),
             "supervised_same_input_checkpoint": True,
             "public_pretrained": False,
@@ -137,6 +157,20 @@ def run(args: argparse.Namespace) -> None:
 
     particle_events, particle_signals, particle_labels, particle_split = load_aligned_bundle(args.particle_root)
     yeast_events, yeast_signals, yeast_labels, yeast_split = load_aligned_bundle(args.yeast_root)
+    yeast_events, yeast_signals, yeast_labels, yeast_split = subset_events(
+        yeast_events,
+        yeast_signals,
+        yeast_labels,
+        yeast_split,
+        max_events=args.max_yeast_events,
+        seed=args.seed,
+    )
+    if particle_signals.shape[1] != yeast_signals.shape[1]:
+        raise ValueError(
+            "Particle and yeast aligned inputs must use the same P3 length: "
+            f"particles={particle_signals.shape[1]}, yeast={yeast_signals.shape[1]}. "
+            "Regenerate both with the canonical 4096-sample pipeline or point to matching legacy outputs."
+        )
 
     events = particle_events + yeast_events
     signals = np.concatenate([particle_signals, yeast_signals], axis=0).astype(np.float32)
@@ -144,7 +178,7 @@ def run(args: argparse.Namespace) -> None:
     split = np.concatenate([particle_split, yeast_split], axis=0)
     write_rows(args.output_dir / "events_metadata.csv", events)
     np.savez_compressed(
-        args.output_dir / "aligned_512_inputs.npz",
+        args.output_dir / "aligned_inputs.npz",
         signals=signals,
         labels=labels,
         split=split,
@@ -165,7 +199,7 @@ def run(args: argparse.Namespace) -> None:
         "n_total_events": int(labels.shape[0]),
         "visual_n_events": int(visual_idx.size),
         "class_labels": {str(k): v for k, v in CLASS_LABELS.items()},
-        "input_representation_all_models": "centered event crop raw 4096 -> mean decimate by 8 -> 512 -> window_zscore",
+        "input_representation_all_models": f"centered event crop -> {int(signals.shape[1])} samples -> window_zscore",
         "models": {},
     }
 
@@ -225,15 +259,16 @@ def run(args: argparse.Namespace) -> None:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Combine Particles2SNR_F 3-class embeddings with detected yeast events for P3 zero-shot figures.")
-    parser.add_argument("--particle-root", type=Path, default=ROOT / "outputs" / "pretrained_backbones" / "particles2snr_f_3class_native_params_moment_patchtst_conv1dgap")
-    parser.add_argument("--yeast-root", type=Path, default=ROOT / "outputs" / "pretrained_backbones" / "yeast_passage_events_p3_512")
+    parser.add_argument("--particle-root", type=Path, default=DEFAULT_PARTICLE_ROOT)
+    parser.add_argument("--yeast-root", type=Path, default=ROOT / "outputs" / "pretrained_backbones" / "yeast_passage_events_p3_4096")
     parser.add_argument("--output-dir", type=Path, default=ROOT / "outputs" / "pretrained_backbones" / "particles2snr_f_3class_plus_yeast_moment_patchtst_conv1dgap")
     parser.add_argument("--cache-dir", type=Path, default=ROOT / "outputs" / "hf_cache")
     parser.add_argument("--moment-model-id", default=MOMENT_DEFAULT_ID)
     parser.add_argument("--patchtst-model-id", default=PATCHTST_DEFAULT_ID)
-    parser.add_argument("--conv-checkpoint", type=Path, default=ROOT / "outputs" / "pretrained_backbones" / "particles2snr_f_3class_native_params_moment_patchtst_conv1dgap" / CONV_MODEL_KEY / "best_model.pt")
+    parser.add_argument("--conv-checkpoint", type=Path, default=DEFAULT_PARTICLE_ROOT / CONV_MODEL_KEY / "best_model.pt")
     parser.add_argument("--conv-model-name", default="Conv1DGAP-L")
-    parser.add_argument("--input-length", type=int, default=512)
+    parser.add_argument("--input-length", type=int, default=4096)
+    parser.add_argument("--max-yeast-events", type=int, default=0)
     parser.add_argument("--max-plot-per-class", type=int, default=500)
     parser.add_argument("--batch-size", type=int, default=32)
     parser.add_argument("--seed", type=int, default=42)

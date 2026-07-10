@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import json
 from pathlib import Path
 
 import numpy as np
@@ -49,7 +50,7 @@ def _toy_embedding_root(tmp_path: Path) -> Path:
     _write_bundle(root, "moment_official", emb_a, labels, split, event_id)
     _write_bundle(root, "patchtst_pretrained", emb_b, labels, split, event_id)
     signals = rng.normal(0.0, 1.0, size=(labels.size, 32)).astype(np.float32)
-    np.savez_compressed(root / "aligned_512_inputs.npz", signals=signals, labels=labels, split=split)
+    np.savez_compressed(root / "aligned_inputs.npz", signals=signals, labels=labels, split=split)
     with (root / "events_metadata.csv").open("w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=["event_id", "sample_id"])
         writer.writeheader()
@@ -60,7 +61,7 @@ def _toy_embedding_root(tmp_path: Path) -> Path:
 
 def test_load_embedding_bundles_adds_raw_and_random_baselines(tmp_path: Path) -> None:
     root = _toy_embedding_root(tmp_path)
-    aligned = load_aligned_inputs(root / "aligned_512_inputs.npz")
+    aligned = load_aligned_inputs(root / "aligned_inputs.npz")
     bundles = load_embedding_bundles(
         embedding_root=root,
         model_keys=["moment_official"],
@@ -149,7 +150,7 @@ def test_balanced_indices_caps_per_class() -> None:
 
 def test_assessment_outputs_write_expected_files(tmp_path: Path) -> None:
     root = _toy_embedding_root(tmp_path)
-    aligned = load_aligned_inputs(root / "aligned_512_inputs.npz")
+    aligned = load_aligned_inputs(root / "aligned_inputs.npz")
     bundles = load_embedding_bundles(
         embedding_root=root,
         model_keys=["moment_official", "patchtst_pretrained"],
@@ -191,6 +192,20 @@ def test_assessment_outputs_write_expected_files(tmp_path: Path) -> None:
     assert len(rows) == 2
     assert set(retrieval) == {"moment_official", "patchtst_pretrained"}
     assert [row["model"] for row in dashboard] == ["moment_official", "patchtst_pretrained"]
+    def reject_constant(raw: str) -> None:
+        raise ValueError(raw)
+
+    representation_metrics = json.loads(
+        (output_dir / "representation_manifold_metrics.json").read_text(),
+        parse_constant=reject_constant,
+    )
+    assert representation_metrics["models"]["moment_official"]["trustworthiness"] is None
+    for name in [
+        "label_efficiency_summary.json",
+        "retrieval_metrics.json",
+        "assessment_dashboard.json",
+    ]:
+        json.loads((output_dir / name).read_text(), parse_constant=reject_constant)
     for name in [
         "representation_manifold.pdf",
         "label_efficiency_curve.pdf",

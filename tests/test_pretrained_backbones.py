@@ -13,6 +13,7 @@ from p3_ssl.pretrained_backbones import (
     signal_to_spectrogram_image,
 )
 from scripts.run_particles2snr_f_3class_aligned_backbones import (
+    build_aligned_signal,
     build_aligned_512_signal,
     materialize_conv_train_views,
     validate_no_test_leakage,
@@ -132,7 +133,7 @@ def test_native_patch_stride_constants_are_explicit() -> None:
 
 def test_patchtst_native_metadata_validates_pretraining_config() -> None:
     class Config:
-        context_length = 512
+        context_length = 4096
         patch_length = 12
         patch_stride = 12
         num_input_channels = 1
@@ -142,7 +143,8 @@ def test_patchtst_native_metadata_validates_pretraining_config() -> None:
 
     metadata = patchtst_native_metadata(Model())
 
-    assert metadata["context_length"] == 512
+    assert metadata["context_length"] == 4096
+    assert metadata["pretrained_context_length"] == 512
     assert metadata["patch_length"] == 12
     assert metadata["patch_stride"] == 12
     assert metadata["paper_forecasting_patch_length"] == 16
@@ -176,7 +178,17 @@ def test_conv1dgap_latent_shape_for_native_input() -> None:
     assert tuple(features.shape) == (2, 256)
 
 
-def test_build_aligned_512_signal_shape_and_scale() -> None:
+def test_build_aligned_signal_defaults_to_p3_4096() -> None:
+    raw = np.linspace(-1.0, 1.0, 4096, dtype=np.float32)
+    aligned = build_aligned_signal(raw)
+
+    assert aligned.shape == (4096,)
+    assert np.isfinite(aligned).all()
+    assert abs(float(aligned.mean())) < 1.0e-5
+    assert 0.99 < float(aligned.std()) < 1.01
+
+
+def test_build_aligned_512_signal_shape_and_scale_compat_alias() -> None:
     raw = np.linspace(-1.0, 1.0, 4096, dtype=np.float32)
     aligned = build_aligned_512_signal(raw)
 

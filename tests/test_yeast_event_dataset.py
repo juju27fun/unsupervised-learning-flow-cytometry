@@ -8,6 +8,7 @@ import numpy as np
 
 from scripts.build_yeast_event_dataset import (
     YeastDetectionConfig,
+    build_aligned_signal_at_center,
     build_aligned_512_signal_at_center,
     build_dataset,
     detect_yeast_passages,
@@ -61,7 +62,17 @@ def test_detect_yeast_passages_groups_multi_doppler_peaks() -> None:
     assert event.width_ms > 0.05
 
 
-def test_build_aligned_512_signal_at_detected_center() -> None:
+def test_build_aligned_signal_at_detected_center_defaults_to_p3_4096() -> None:
+    signal = synthetic_multi_doppler_passage()
+    aligned = build_aligned_signal_at_center(signal, center_index=signal.size // 2)
+
+    assert aligned.shape == (4096,)
+    assert np.isfinite(aligned).all()
+    assert abs(float(aligned.mean())) < 1.0e-5
+    assert 0.99 < float(aligned.std()) < 1.01
+
+
+def test_build_aligned_512_signal_at_detected_center_compat_alias() -> None:
     signal = synthetic_multi_doppler_passage()
     aligned = build_aligned_512_signal_at_center(signal, center_index=signal.size // 2)
 
@@ -111,7 +122,7 @@ def test_build_dataset_writes_p3_compatible_outputs(tmp_path: Path) -> None:
         min_width_ms=0.05,
         max_width_ms=2.0,
         raw_crop_length=4096,
-        output_length=512,
+        output_length=4096,
         write_audit=False,
         audit_max_events=0,
     )
@@ -119,8 +130,8 @@ def test_build_dataset_writes_p3_compatible_outputs(tmp_path: Path) -> None:
     summary = build_dataset(args)
 
     assert summary["kept_events"]["n"] == 1
-    with np.load(output_dir / "aligned_512_inputs.npz", allow_pickle=True) as data:
-        assert data["signals"].shape == (1, 512)
+    with np.load(output_dir / "aligned_inputs.npz", allow_pickle=True) as data:
+        assert data["signals"].shape == (1, 4096)
         assert data["labels"].tolist() == [3]
         assert data["split"].astype(str).tolist() == ["test"]
         assert data["event_id"].astype(str).tolist()[0].startswith("test/yeast/")

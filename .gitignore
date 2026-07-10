@@ -14,9 +14,20 @@ htmlcov/
 venv/
 
 # Local/generated artifacts
-outputs/*
-!outputs/.gitkeep
 vendor/
+outputs/hf_cache/**
+!outputs/hf_cache/
+!outputs/hf_cache/.gitkeep
+outputs/runs/*smoke*/**
+outputs/particle_equation_latent_sweeps/smoke*/**
+outputs/physical_latent_eval/smoke*/**
+outputs/**/*.pdf
+outputs/**/*.png
+outputs/**/*.txt
+outputs/**/*.log
+outputs/**/*.tsv
+outputs/**/*.pid
+outputs/**/*.sh
 
 # Model/data artifacts
 *.pt
@@ -25,8 +36,6 @@ vendor/
 *.safetensors
 *.npz
 *.npy
-*.pdf
-*.png
 *.jpg
 *.jpeg
 *.gif

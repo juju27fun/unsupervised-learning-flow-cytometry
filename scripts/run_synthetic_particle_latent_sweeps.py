@@ -267,7 +267,7 @@ def load_conv1dgap_same_input_model(
     checkpoint_path: Path,
     device: torch.device | str,
     model_name: str = "Conv1DGAP-L",
-    input_length: int = 512,
+    input_length: int = 4096,
 ) -> nn.Module:
     from models import create_model
 
@@ -735,7 +735,7 @@ def main() -> None:
     parser.add_argument("--conv-model-name", default="Conv1DGAP-L")
     parser.add_argument("--cache-dir", type=Path, default=ROOT / "outputs" / "hf_cache")
     parser.add_argument("--n-per-panel", type=int, default=1800)
-    parser.add_argument("--input-length", type=int, default=512)
+    parser.add_argument("--input-length", type=int, default=4096)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--noise-std", type=float, default=0.0)
     parser.add_argument("--normalization", default="window_zscore")

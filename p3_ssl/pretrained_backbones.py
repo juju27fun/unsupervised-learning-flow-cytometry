@@ -93,9 +93,9 @@ def load_decimated_signal(
 def collect_particle_events(
     manifest_csv: Path,
     input_length_raw: int = 16384,
-    decimation_factor: int = 8,
-    input_length_ssl: int = 2048,
-    event_length: int = 512,
+    decimation_factor: int = 4,
+    input_length_ssl: int = 4096,
+    event_length: int = 4096,
     normalization: str = "window_zscore",
     decimation_method: str = "mean",
     class_names: dict[int, str] | None = None,
@@ -195,6 +195,7 @@ def load_patchtst_1ch_model(
     model_id: str = PATCHTST_DEFAULT_ID,
     cache_dir: Path | None = None,
     device: torch.device | str = "cpu",
+    context_length: int | None = None,
 ):
     configure_pretrained_paths(cache_dir)
     from transformers import AutoConfig, PatchTSTModel
@@ -203,6 +204,8 @@ def load_patchtst_1ch_model(
     source_model = PatchTSTModel.from_pretrained(model_id, cache_dir=cache_dir)
     target_config = copy.deepcopy(source_config)
     target_config.num_input_channels = 1
+    if context_length is not None:
+        target_config.context_length = int(context_length)
     target_model = PatchTSTModel(target_config)
 
     source_state = source_model.state_dict()
@@ -267,7 +270,7 @@ def load_moment_official_model(
     model_id: str = MOMENT_DEFAULT_ID,
     cache_dir: Path | None = None,
     device: torch.device | str = "cpu",
-    seq_len: int = 512,
+    seq_len: int = 4096,
 ):
     configure_moment_with_pretrained_transformers(cache_dir)
     from moment.models.moment import MOMENTPipeline

@@ -29,6 +29,8 @@ for path_entry in (ROOT, P0_ROOT):
     if str(path_entry) not in sys.path:
         sys.path.insert(0, str(path_entry))
 
+from p3_ssl.serialization import json_safe
+
 
 CLASS_NAMES = {
     0: "2um",
@@ -81,6 +83,11 @@ def parse_csv_strings(raw: str) -> list[str]:
 def output_bases(output_dir: Path, stem: str) -> tuple[Path, Path]:
     output_dir.mkdir(parents=True, exist_ok=True)
     return output_dir / f"{stem}.pdf", output_dir / f"{stem}.png"
+
+
+def write_strict_json(path: Path, payload: Any) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(json_safe(payload), indent=2, sort_keys=True, allow_nan=False) + "\n")
 
 
 def apply_pub_style() -> None:
@@ -418,8 +425,7 @@ def plot_manifold_figure(
     fig.savefig(png_path, dpi=220)
     plt.close(fig)
     np.savez_compressed(output_dir / "representation_manifold_reductions.npz", **reductions)
-    with (output_dir / "representation_manifold_metrics.json").open("w") as f:
-        json.dump(metrics, f, indent=2, sort_keys=True)
+    write_strict_json(output_dir / "representation_manifold_metrics.json", metrics)
     return metrics
 
 def safe_silhouette(embeddings: np.ndarray, labels: np.ndarray) -> float:
@@ -504,8 +510,7 @@ def run_label_efficiency(
         writer.writeheader()
         writer.writerows(rows)
     plot_label_efficiency(rows, output_dir)
-    with (output_dir / "label_efficiency_summary.json").open("w") as f:
-        json.dump(summarize_probe_rows(rows), f, indent=2, sort_keys=True)
+    write_strict_json(output_dir / "label_efficiency_summary.json", summarize_probe_rows(rows))
     return rows
 
 
@@ -633,8 +638,7 @@ def plot_retrieval_sheet(
         for bundle in bundles
     }
     output_dir.mkdir(parents=True, exist_ok=True)
-    with (output_dir / "retrieval_metrics.json").open("w") as f:
-        json.dump(metrics, f, indent=2, sort_keys=True)
+    write_strict_json(output_dir / "retrieval_metrics.json", metrics)
 
     if signals is not None:
         pdf_path = output_dir / "nearest_neighbor_retrieval_sheet.pdf"
@@ -737,8 +741,7 @@ def plot_reconstruction_diagnostic(
     fig.savefig(pdf_path)
     fig.savefig(png_path, dpi=220)
     plt.close(fig)
-    with (output_dir / "reconstruction_diagnostic_summary.json").open("w") as f:
-        json.dump(status, f, indent=2, sort_keys=True)
+    write_strict_json(output_dir / "reconstruction_diagnostic_summary.json", status)
     return status
 
 
@@ -821,8 +824,7 @@ def run_robustness_grid(
         result["models"][model_key] = model_rows
 
     output_dir.mkdir(parents=True, exist_ok=True)
-    with (output_dir / "robustness_metrics.json").open("w") as f:
-        json.dump(result, f, indent=2, sort_keys=True)
+    write_strict_json(output_dir / "robustness_metrics.json", result)
     plot_robustness_grid(result, output_dir)
     return result
 
@@ -858,8 +860,7 @@ def plot_robustness_grid(result: dict[str, Any], output_dir: Path) -> None:
 def write_robustness_placeholder(output_dir: Path, reason: str) -> dict[str, Any]:
     output_dir.mkdir(parents=True, exist_ok=True)
     payload = {"status": "not_run", "reason": reason}
-    with (output_dir / "robustness_metrics.json").open("w") as f:
-        json.dump(payload, f, indent=2, sort_keys=True)
+    write_strict_json(output_dir / "robustness_metrics.json", payload)
     apply_pub_style()
     fig, ax = plt.subplots(figsize=(6.0, 3.2), constrained_layout=True)
     ax.text(0.5, 0.5, reason, ha="center", va="center", wrap=True)
@@ -911,8 +912,7 @@ def write_assessment_dashboard(
                 "center_mask64_cosine_distance": _robustness_metric(robustness, bundle.key, "center_mask_64"),
             }
         )
-    with (output_dir / "assessment_dashboard.json").open("w") as f:
-        json.dump(rows, f, indent=2, sort_keys=True)
+    write_strict_json(output_dir / "assessment_dashboard.json", rows)
 
     columns = [
         ("probe_bal_acc_1pct", "Probe 1%", False),
@@ -1012,8 +1012,11 @@ def main() -> None:
     args = build_parser().parse_args()
     aligned_path = args.aligned_inputs
     if aligned_path is None:
-        candidate = args.embedding_root / "aligned_512_inputs.npz"
-        aligned_path = candidate if candidate.is_file() else None
+        for candidate_name in ("aligned_inputs.npz", "aligned_512_inputs.npz"):
+            candidate = args.embedding_root / candidate_name
+            if candidate.is_file():
+                aligned_path = candidate
+                break
     metadata_path = args.event_metadata
     if metadata_path is None:
         candidate = args.embedding_root / "events_metadata.csv"
@@ -1100,8 +1103,7 @@ def main() -> None:
         retrieval=summary["retrieval"],
         robustness=summary["robustness"],
     )
-    with (args.output_dir / "ssl_assessment_summary.json").open("w") as f:
-        json.dump(summary, f, indent=2, sort_keys=True)
+    write_strict_json(args.output_dir / "ssl_assessment_summary.json", summary)
     print(json.dumps({"output_dir": str(args.output_dir), "models": summary["models"]}, sort_keys=True))
 
 

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 import torch
 
 from p3_ssl.config import load_config, validate_study_config
@@ -12,8 +14,11 @@ from p3_ssl.study_training import (
 )
 
 
+CONFIG_PATH = Path(__file__).parents[1] / "configs/yeast_ssl_rebuild_v1.yaml"
+
+
 def test_rebuild_config_is_coherent() -> None:
-    config = load_config("configs/yeast_ssl_rebuild_v1.yaml")
+    config = load_config(CONFIG_PATH)
     validate_study_config(config)
     assert config["model"]["patch_size"] == 16
     assert "test" in config["data"]["forbidden_training_splits"]
@@ -24,7 +29,7 @@ def test_rebuild_config_is_coherent() -> None:
 
 
 def test_mask_batch_has_256_tokens_and_trivial_controls() -> None:
-    config = load_config("configs/yeast_ssl_rebuild_v1.yaml")
+    config = load_config(CONFIG_PATH)
     signal = torch.sin(torch.arange(4096, dtype=torch.float32) / 20.0).reshape(1, 1, -1)
     event = torch.zeros(1, 4096, dtype=torch.bool)
     event[:, 1500:2500] = True

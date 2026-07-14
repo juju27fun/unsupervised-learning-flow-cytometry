@@ -132,6 +132,13 @@ were checked against the real v5 payload without submitting an annotation.
 The protocol now also requires a stratified 20% independent double review; this
 reliability evidence is still pending.
 
+The blank second-review artifact is preselected at
+`artifacts/particles2SNR-pipeline/audits/yeast-event-review-v5-reliability-work/`.
+It contains 15 candidate windows and 15 full traces (`20.55%` of each queue),
+covers all 13 available strata in both tasks, validates as a manifested run,
+and records data-owner revision `4f5fa13`. No reliability annotation has been
+entered yet.
+
 ## Development Smoke Evidence
 
 All values below are runtime/development diagnostics from

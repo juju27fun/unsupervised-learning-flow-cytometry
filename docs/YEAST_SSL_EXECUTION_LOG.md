@@ -123,6 +123,15 @@ is documented in
 [`YEAST_ACQUISITION_INTAKE.md`](https://github.com/juju27fun/particles2SNR-pipeline/blob/reorg/workspace-20260710/YEAST_ACQUISITION_INTAKE.md).
 This closes the software-readiness risk, not Gate 1 itself.
 
+The editable v5 queues can now be reviewed at `http://127.0.0.1:8765` through
+`particles2SNR-pipeline/scripts/reports/serve_yeast_event_review.py`. The local
+reviewer presents the raw trace and 7-80 kHz spectrogram, separates retained
+candidate decisions from full-trace counts, validates count identities, saves
+atomically, and keeps an append-only checksum audit. Desktop and mobile renders
+were checked against the real v5 payload without submitting an annotation.
+The protocol now also requires a stratified 20% independent double review; this
+reliability evidence is still pending.
+
 ## Development Smoke Evidence
 
 All values below are runtime/development diagnostics from

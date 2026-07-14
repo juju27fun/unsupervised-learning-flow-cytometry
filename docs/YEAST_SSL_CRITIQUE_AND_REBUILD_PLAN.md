@@ -437,6 +437,14 @@ dataset-validity thresholds, not downstream performance endpoints. The
 registered candidate-review CSV files are immutable templates; completed
 annotations are stored and registered separately.
 
+At least 20% of candidate-window and full-trace rows must be independently
+double-reviewed with coverage balanced across review strata. Report raw
+agreement with uncertainty and Cohen's kappa for binary decisions, retain both
+original reviewer files, and adjudicate every disagreement before deriving the
+final labels. If no second qualified reviewer is available, perform a blinded
+delayed repeat and identify it as intra-rater repeatability rather than
+independent agreement. This distinction must appear in the limitations.
+
 ### 5.4 Canonical input selection
 
 Candidate physical windows are evaluated before training, for example raw 4096

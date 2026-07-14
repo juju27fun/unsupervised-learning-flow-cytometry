@@ -98,12 +98,12 @@ Even a passing detector audit will not unlock the primary OOD endpoint: a
 second independent acquisition is required. Full training remains blocked
 until both requirements are satisfied.
 
-The rendered review material is at
-`artifacts/particles2SNR-pipeline/audits/yeast-event-review-v5/` from the
-workspace root. Use the PDFs there for inspection, but write completed CSV
-copies to a separate review directory and pass it through `--review-dir` to
-`scripts/analysis/analyze_yeast_event_review.py`. The exact pass thresholds are
-frozen in Section 5.3 of the rebuild plan.
+The rendered review material and editable queue copies are at
+`artifacts/particles2SNR-pipeline/audits/yeast-event-review-v5-work/` from the
+workspace root. Annotate the two CSV copies there, then pass that directory
+through `--review-dir` to `scripts/analysis/analyze_yeast_event_review.py`.
+The analyzer archives the completed CSVs with its metrics. The exact pass
+thresholds are frozen in Section 5.3 of the rebuild plan.
 
 ## Development Smoke Evidence
 

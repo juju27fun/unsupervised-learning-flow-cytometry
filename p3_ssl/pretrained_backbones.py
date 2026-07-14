@@ -260,11 +260,20 @@ def load_moment_official_model(
     seq_len: int = 4096,
 ):
     configure_moment_with_pretrained_transformers(cache_dir)
+    from huggingface_hub import hf_hub_download
     from moment.models.moment import MOMENTPipeline
 
+    config_path = hf_hub_download(
+        repo_id=model_id,
+        filename="config.json",
+        cache_dir=cache_dir,
+    )
+    config = json.loads(Path(config_path).read_text(encoding="utf-8"))
+    config.update({"task_name": "pre-training", "seq_len": seq_len, "n_channels": 1})
     model = MOMENTPipeline.from_pretrained(
         model_id,
         cache_dir=cache_dir,
+        config=config,
         model_kwargs={"task_name": "pre-training", "seq_len": seq_len, "n_channels": 1},
     )
     model.init()

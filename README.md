@@ -4,6 +4,14 @@ Self-supervised particle-signal representation learning, pretrained backbone
 comparisons, and physical latent-space validation. Reusable code is in
 `p3_ssl/`; user-facing commands are in `scripts/`.
 
+## Research status
+
+The original P3 design is under methodological reconstruction. Do not launch a
+large SSL or hybrid-physics run from the legacy configurations until the data,
+split, physical-input, nuisance-variable, and baseline gates in
+[`docs/YEAST_SSL_CRITIQUE_AND_REBUILD_PLAN.md`](docs/YEAST_SSL_CRITIQUE_AND_REBUILD_PLAN.md)
+pass. Existing runs remain exploratory evidence and are not deleted.
+
 ## Workspace contract
 
 - Environment: `../.venv`
@@ -27,6 +35,9 @@ From the workspace root:
 .venv/bin/python unsupervised-learning-flow-cytometry/scripts/train_ssl_reconstruction.py --help
 ```
 
-The canonical representation is a centered 4096-sample 1D input. See
-`docs/p3_4096_pipeline.md` for the research workflow. Every generated manifest,
-checkpoint, metric table, and figure belongs in the project artifact root.
+The current implementation reference uses a centered 4096-sample 1D input, but
+its physical contract is being re-audited against the historical decimated-4096
+path. See [`docs/p3_4096_pipeline.md`](docs/p3_4096_pipeline.md) for the existing
+workflow and the rebuild plan above for experiment authorization. Every
+generated manifest, checkpoint, metric table, and figure belongs in the project
+artifact root.

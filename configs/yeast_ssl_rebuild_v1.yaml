@@ -1,0 +1,108 @@
+study:
+  protocol: yeast-ssl-rebuild-v1
+  real_dataset: yeast-events-representation@v2
+  simulation_dataset: yeast-passage-simulations@v1
+  input_contract: yeast-event-8192to4096-bandpass-global-v1
+  primary_endpoint_status: blocked_pending_independent_acquisition
+
+data:
+  input_length: 4096
+  sampling_frequency_hz: 1000000
+  real_train_split: development_train
+  real_validation_split: development_validation
+  simulation_train_split: train
+  simulation_validation_split: validation
+  forbidden_training_splits: [in_session_test, test]
+
+model:
+  architecture: patch_transformer_reconstructor
+  patch_size: 16
+  patch_stride: 16
+  d_model: 96
+  n_heads: 4
+  n_layers: 3
+  dim_feedforward: 384
+  dropout: 0.10
+  activation: gelu
+  max_tokens: 256
+  embedding_pool: mean
+
+masking:
+  mask_ratio: 0.25
+  min_block_ms: 0.128
+  max_block_ms: 0.512
+  guard_ms: 0.016
+  avoid_fully_hidden_events: true
+  max_event_hidden_fraction: 0.75
+  max_mask_attempts: 32
+
+loss:
+  reconstruction_weight: 1.0
+  physics_continuous_weight: 0.25
+  component_count_weight: 0.10
+  nuisance_consistency_weight: 0.10
+
+training:
+  seed: 42
+  optimizer: adamw
+  learning_rate: 0.0003
+  weight_decay: 0.01
+  grad_clip_norm: 1.0
+  profiles:
+    smoke:
+      epochs: 1
+      adaptation_epochs: 1
+      batch_size: 4
+      max_real_events: 16
+      max_simulation_latents: 8
+      num_workers: 0
+    full:
+      epochs: 20
+      adaptation_epochs: 10
+      batch_size: 32
+      max_real_events: null
+      max_simulation_latents: null
+      num_workers: 2
+  adaptation_replay:
+    synthetic_weight_start: 0.30
+    synthetic_weight_end: 0.10
+
+information_policy:
+  preserve_predict:
+    - duration_ms
+    - doppler_khz
+    - component_count
+    - component_separation_ms
+    - relative_component_amplitude
+    - frequency_separation_khz
+  randomize_invariant:
+    - phase_rad
+    - event_position_fraction
+    - snr_db
+    - target_rms
+    - baseline_drift
+    - sensor_response
+  unresolved_excluded:
+    - absolute_physical_amplitude
+    - yeast_morphology
+  forbidden_augmentations:
+    - amplitude_scaling
+    - temporal_warping
+
+baselines:
+  endpoint_scope: source_group_proxy_diagnostic
+  profiles:
+    smoke:
+      max_events_per_class: 32
+      label_fractions: [0.10, 1.00]
+      probe_seeds: [42]
+      conv1d_epochs: 1
+      batch_size: 8
+      public_batch_size: 2
+    full:
+      max_events_per_class: null
+      label_fractions: [0.01, 0.05, 0.10, 0.25, 1.00]
+      probe_seeds: [42, 43, 44]
+      conv1d_epochs: 30
+      batch_size: 32
+      public_batch_size: 8

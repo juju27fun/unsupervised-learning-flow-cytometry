@@ -56,3 +56,39 @@ def validate_ssl_config(config: dict[str, Any]) -> None:
             "Computed token count exceeds model.max_tokens: "
             f"{n_tokens} > {max_tokens}"
         )
+
+
+def validate_study_config(config: dict[str, Any]) -> None:
+    data = config["data"]
+    model = config["model"]
+    masking = config["masking"]
+    policy = config["information_policy"]
+    input_length = int(data["input_length"])
+    tokens = ssl_token_count(
+        input_length,
+        int(model["patch_size"]),
+        int(model["patch_stride"]),
+    )
+    if tokens != int(model["max_tokens"]):
+        raise ValueError(f"Study token count must equal model.max_tokens: {tokens}")
+    forbidden = set(data.get("forbidden_training_splits", []))
+    selected = {
+        data["real_train_split"],
+        data["real_validation_split"],
+        data["simulation_train_split"],
+        data["simulation_validation_split"],
+    }
+    overlap = forbidden & selected
+    if overlap:
+        raise ValueError(f"Forbidden split selected for training/validation: {sorted(overlap)}")
+    if float(masking["min_block_ms"]) <= 0 or float(masking["max_block_ms"]) < float(
+        masking["min_block_ms"]
+    ):
+        raise ValueError("Invalid masking block duration")
+    roles = (
+        set(policy["preserve_predict"]),
+        set(policy["randomize_invariant"]),
+        set(policy["unresolved_excluded"]),
+    )
+    if any(left & right for index, left in enumerate(roles) for right in roles[index + 1 :]):
+        raise ValueError("Information-policy roles must be disjoint")

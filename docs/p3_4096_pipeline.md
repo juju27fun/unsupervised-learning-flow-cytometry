@@ -1,5 +1,12 @@
 # Pipeline P3 Canonique 4096
 
+> **Research-status notice (2026-07-14).** This document describes the current
+> implementation, not an authorized final scientific protocol. The same tensor
+> length has historically represented both a decimated full trace and a raw
+> centered crop, which are not physically equivalent. Use
+> [`YEAST_SSL_CRITIQUE_AND_REBUILD_PLAN.md`](YEAST_SSL_CRITIQUE_AND_REBUILD_PLAN.md)
+> to select and freeze one physical input contract before new large training.
+
 Cette note fixe l'état cible actuel de P3 : les datasets événementiels, les
 sweeps synthétiques et les comparaisons de latent spaces utilisent des entrées
 1D de `4096` points normalisées par `window_zscore`. Les anciens artefacts en

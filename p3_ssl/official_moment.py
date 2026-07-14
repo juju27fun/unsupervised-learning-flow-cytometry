@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 from dataclasses import dataclass
 from pathlib import Path
@@ -40,10 +41,20 @@ def load_official_moment(
     n_channels: int = 1,
 ):
     configure_official_moment_paths(cache_dir)
+    from huggingface_hub import hf_hub_download
     from moment.models.moment import MOMENTPipeline
 
+    config_path = hf_hub_download(
+        repo_id=model_id,
+        filename="config.json",
+        cache_dir=cache_dir,
+    )
+    config = json.loads(Path(config_path).read_text(encoding="utf-8"))
+    config.update({"task_name": task_name, "n_channels": n_channels, "seq_len": seq_len})
     model = MOMENTPipeline.from_pretrained(
         model_id,
+        cache_dir=cache_dir,
+        config=config,
         model_kwargs={
             "task_name": task_name,
             "n_channels": n_channels,

@@ -276,9 +276,10 @@ def prediction_metrics(
 ) -> dict[str, Any]:
     class_ids = np.arange(len(class_names))
     recalls = recall_score(labels, predictions, labels=class_ids, average=None, zero_division=0)
+    present = np.unique(labels)
     return {
         "macro_f1": float(f1_score(labels, predictions, labels=class_ids, average="macro", zero_division=0)),
-        "balanced_accuracy": float(balanced_accuracy_score(labels, predictions)),
+        "balanced_accuracy": float(recalls[present].mean()) if present.size else 0.0,
         "per_class_recall": {
             name: float(recalls[index]) for index, name in enumerate(class_names)
         },
@@ -294,6 +295,22 @@ def linear_probe(
     fraction: float,
     seed: int,
 ) -> dict[str, Any]:
+    model, train = fit_linear_probe(features, data, fraction=fraction, seed=seed)
+    predictions = model.predict(features[data.validation_indices])
+    return {
+        **prediction_metrics(data.labels[data.validation_indices], predictions, data.class_names),
+        "n_probe_events": int(train.size),
+        "n_probe_records": len({data.rows[int(index)]["record_id"] for index in train}),
+    }
+
+
+def fit_linear_probe(
+    features: np.ndarray,
+    data: BaselineData,
+    *,
+    fraction: float,
+    seed: int,
+) -> tuple[Any, np.ndarray]:
     train = sample_record_groups(data.rows, data.labels, data.train_indices, fraction, seed)
     model = make_pipeline(
         StandardScaler(),
@@ -305,12 +322,7 @@ def linear_probe(
         ),
     )
     model.fit(features[train], data.labels[train])
-    predictions = model.predict(features[data.validation_indices])
-    return {
-        **prediction_metrics(data.labels[data.validation_indices], predictions, data.class_names),
-        "n_probe_events": int(train.size),
-        "n_probe_records": len({data.rows[int(index)]["record_id"] for index in train}),
-    }
+    return model, train
 
 
 def simulation_real_domain_probe(
@@ -394,6 +406,9 @@ def supervised_conv1d(
     epochs: int,
     batch_size: int,
     device: torch.device,
+    bootstrap_repeats: int = 0,
+    calibration_bins: int = 10,
+    retrieval_neighbors: int = 5,
 ) -> dict[str, Any]:
     random.seed(seed)
     np.random.seed(seed)
@@ -420,14 +435,60 @@ def supervised_conv1d(
             optimizer.step()
     model.eval()
     predictions = []
+    probabilities = []
+    embeddings = []
     labels = []
     with torch.no_grad():
         for signals, target in validation_loader:
-            predictions.extend(model(signals.to(device)).argmax(dim=1).cpu().tolist())
+            encoded = model.features(signals.to(device)).squeeze(-1)
+            probability = model.classifier(encoded).softmax(dim=1)
+            predictions.extend(probability.argmax(dim=1).cpu().tolist())
+            probabilities.append(probability.cpu().numpy())
+            embeddings.append(encoded.cpu().numpy())
             labels.extend(target.tolist())
-    return {
-        **prediction_metrics(np.asarray(labels), np.asarray(predictions), data.class_names),
+    label_array = np.asarray(labels)
+    prediction_array = np.asarray(predictions)
+    probability_array = np.concatenate(probabilities)
+    embedding_array = np.concatenate(embeddings)
+    result = {
+        **prediction_metrics(label_array, prediction_array, data.class_names),
         "n_probe_events": int(train.size),
         "n_probe_records": len({data.rows[int(index)]["record_id"] for index in train}),
         "epochs": epochs,
     }
+    if bootstrap_repeats:
+        from .study_evaluation import (
+            calibration_metrics,
+            cross_recording_retrieval,
+            grouped_bootstrap_metrics,
+            subgroup_metrics,
+        )
+
+        validation_rows = [data.rows[int(index)] for index in data.validation_indices]
+        groups = np.asarray(
+            [row.get("capture_block_id") or row["record_id"] for row in validation_rows]
+        )
+        result.update(
+            {
+                "calibration": calibration_metrics(
+                    label_array, probability_array, n_bins=calibration_bins
+                ),
+                "grouped_bootstrap": grouped_bootstrap_metrics(
+                    label_array,
+                    prediction_array,
+                    probability_array,
+                    groups,
+                    class_count=len(data.class_names),
+                    repeats=bootstrap_repeats,
+                    seed=seed,
+                ),
+                "subgroups": subgroup_metrics(data, prediction_array),
+                "development_retrieval": cross_recording_retrieval(
+                    embedding_array,
+                    validation_rows,
+                    label_array,
+                    neighbors=retrieval_neighbors,
+                ),
+            }
+        )
+    return result

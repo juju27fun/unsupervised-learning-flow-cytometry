@@ -16,12 +16,17 @@ from p3_ssl.config import load_config
 from p3_ssl.study_baselines import (
     BASELINE_METHODS,
     handcrafted_features,
-    linear_probe,
     load_baseline_data,
     public_encoder_features,
     random_encoder_features,
     rms_features,
     supervised_conv1d,
+)
+from p3_ssl.study_evaluation import (
+    cross_recording_retrieval,
+    evaluate_linear_probe,
+    label_efficiency_auc,
+    real_variability_summary,
 )
 from p3_ssl.study_training import embedding_health_statistics, model_config_from_study
 
@@ -55,6 +60,10 @@ def main() -> None:
         raise SystemExit(f"Output already exists: {args.output_dir}")
     config = load_config(args.config)
     profile = config["baselines"]["profiles"][args.profile]
+    evaluation = config["evaluation"]
+    bootstrap_repeats = int(
+        evaluation["profiles"][args.profile]["grouped_bootstrap_repeats"]
+    )
     data = load_baseline_data(
         args.real_root,
         max_per_class=profile["max_events_per_class"],
@@ -78,6 +87,9 @@ def main() -> None:
                         epochs=int(profile["conv1d_epochs"]),
                         batch_size=int(profile["batch_size"]),
                         device=device,
+                        bootstrap_repeats=bootstrap_repeats,
+                        calibration_bins=int(evaluation["calibration_bins"]),
+                        retrieval_neighbors=int(evaluation["retrieval_neighbors"]),
                     )
                     results.append({"method": method, "label_fraction": fraction, "seed": seed, **metrics})
             continue
@@ -113,9 +125,23 @@ def main() -> None:
         features = np.empty((len(data.rows), subset_features.shape[1]), dtype=np.float32)
         features[selected] = subset_features
         method_metadata[method] = metadata
+        validation_offset = len(data.train_indices)
+        metadata["development_retrieval"] = cross_recording_retrieval(
+            subset_features[validation_offset:],
+            [data.rows[int(index)] for index in data.validation_indices],
+            data.labels[data.validation_indices],
+            neighbors=int(evaluation["retrieval_neighbors"]),
+        )
         for fraction in profile["label_fractions"]:
             for seed in profile["probe_seeds"]:
-                metrics = linear_probe(features, data, fraction=float(fraction), seed=int(seed))
+                metrics, _ = evaluate_linear_probe(
+                    features,
+                    data,
+                    fraction=float(fraction),
+                    seed=int(seed),
+                    bootstrap_repeats=bootstrap_repeats,
+                    calibration_bins=int(evaluation["calibration_bins"]),
+                )
                 results.append({"method": method, "label_fraction": fraction, "seed": seed, **metrics})
 
     args.output_dir.mkdir(parents=True)
@@ -131,6 +157,8 @@ def main() -> None:
         "sealed_splits_used": [],
         "method_metadata": method_metadata,
         "results": results,
+        "label_efficiency_auc": label_efficiency_auc(results, "method"),
+        "development_variability": real_variability_summary(data),
     }
     (args.output_dir / "metrics.json").write_text(
         json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8"
@@ -145,7 +173,10 @@ def main() -> None:
         "project": "unsupervised-learning-flow-cytometry",
         "run_id": args.run_id,
         "dataset": config["study"]["real_dataset"],
-        "repositories": {"unsupervised-learning-flow-cytometry": _revision(repo_root)},
+        "repositories": {
+            "unsupervised-learning-flow-cytometry": _revision(repo_root),
+            "particles2SNR-pipeline": _revision(repo_root.parent / "particles2SNR-pipeline"),
+        },
         "command": " ".join(sys.argv),
         "created_at": datetime.now(timezone.utc).isoformat(),
         "status": "complete",

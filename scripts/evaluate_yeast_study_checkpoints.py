@@ -16,9 +16,18 @@ import torch
 from p3_ssl.config import load_config
 from p3_ssl.study_baselines import (
     checkpoint_encoder_features,
-    linear_probe,
     load_baseline_data,
+    prediction_metrics,
     simulation_real_domain_probe,
+)
+from p3_ssl.study_evaluation import (
+    cross_recording_retrieval,
+    evaluate_linear_probe,
+    label_efficiency_auc,
+    perturb_signals,
+    physical_embedding_diagnostics,
+    real_variability_summary,
+    robustness_metrics,
 )
 from p3_ssl.study_training import embedding_health_statistics
 
@@ -46,6 +55,11 @@ def _simulation_indices(root: Path, split: str) -> np.ndarray:
     )
 
 
+def _simulation_rows(root: Path) -> dict[int, dict[str, str]]:
+    with (root / "simulation_metadata.csv").open(newline="", encoding="utf-8") as handle:
+        return {int(row["signal_row"]): row for row in csv.DictReader(handle)}
+
+
 def _bounded(indices: np.ndarray, maximum: int, seed: int) -> np.ndarray:
     if len(indices) <= maximum:
         return indices
@@ -68,6 +82,10 @@ def main() -> None:
 
     config = load_config(args.config)
     profile = config["baselines"]["profiles"][args.profile]
+    evaluation = config["evaluation"]
+    bootstrap_repeats = int(
+        evaluation["profiles"][args.profile]["grouped_bootstrap_repeats"]
+    )
     seed = int(config["training"]["seed"])
     data = load_baseline_data(
         args.real_root, max_per_class=profile["max_events_per_class"], seed=seed
@@ -83,6 +101,11 @@ def main() -> None:
     )
     simulation_indices = np.concatenate([simulation_train, simulation_validation])
     simulation_subset = np.asarray(simulation_signals[simulation_indices], dtype=np.float32)
+    simulation_by_index = _simulation_rows(args.simulation_root)
+    simulation_train_rows = [simulation_by_index[int(index)] for index in simulation_train]
+    simulation_validation_rows = [
+        simulation_by_index[int(index)] for index in simulation_validation
+    ]
     device = torch.device(args.device)
     results = []
     checkpoint_metadata = {}
@@ -97,11 +120,18 @@ def main() -> None:
         )
         features = np.empty((len(data.rows), real_embeddings.shape[1]), dtype=np.float32)
         features[real_indices] = real_embeddings
+        probe_models = {}
         for fraction in profile["label_fractions"]:
             for probe_seed in profile["probe_seeds"]:
-                metrics = linear_probe(
-                    features, data, fraction=float(fraction), seed=int(probe_seed)
+                metrics, probe_model = evaluate_linear_probe(
+                    features,
+                    data,
+                    fraction=float(fraction),
+                    seed=int(probe_seed),
+                    bootstrap_repeats=bootstrap_repeats,
+                    calibration_bins=int(evaluation["calibration_bins"]),
                 )
+                probe_models[(float(fraction), int(probe_seed))] = probe_model
                 results.append(
                     {
                         "checkpoint": name,
@@ -126,12 +156,72 @@ def main() -> None:
             simulation_embeddings[n_simulation_train:],
             seed=seed,
         )
+        validation_embeddings = real_embeddings[n_real_train:]
+        validation_rows = [data.rows[int(index)] for index in data.validation_indices]
+        retrieval = cross_recording_retrieval(
+            validation_embeddings,
+            validation_rows,
+            data.labels[data.validation_indices],
+            neighbors=int(evaluation["retrieval_neighbors"]),
+        )
+        robustness_fraction = float(evaluation["robustness_label_fraction"])
+        robustness_seed = int(profile["probe_seeds"][0])
+        probe_model = probe_models[(robustness_fraction, robustness_seed)]
+        base_probability = probe_model.predict_proba(validation_embeddings)
+        validation_signals = real_signals[n_real_train:]
+        robustness = {}
+        for perturbation_index, (perturbation_name, perturbation) in enumerate(
+            evaluation["perturbations"].items()
+        ):
+            perturbed_signals = perturb_signals(
+                validation_signals,
+                perturbation,
+                seed=seed + perturbation_index,
+            )
+            perturbed_embeddings, _ = checkpoint_encoder_features(
+                perturbed_signals,
+                checkpoint_path,
+                batch_size=int(profile["batch_size"]),
+                device=device,
+            )
+            perturbed_probability = probe_model.predict_proba(perturbed_embeddings)
+            robustness[perturbation_name] = {
+                **robustness_metrics(
+                    validation_embeddings,
+                    perturbed_embeddings,
+                    base_probability,
+                    perturbed_probability,
+                ),
+                "role": perturbation["role"],
+                "perturbed_prediction_metrics": prediction_metrics(
+                    data.labels[data.validation_indices],
+                    perturbed_probability.argmax(axis=1),
+                    data.class_names,
+                ),
+            }
         checkpoint_metadata[name] = {
             **metadata,
             "checkpoint": str(checkpoint_path),
             "real_embedding_health": embedding_health_statistics(real_embeddings),
             "simulation_embedding_health": embedding_health_statistics(simulation_embeddings),
             "simulation_real_domain_probe": domain,
+            "development_retrieval": retrieval,
+            "development_physical_fidelity": physical_embedding_diagnostics(
+                simulation_embeddings[:n_simulation_train],
+                simulation_embeddings[n_simulation_train:],
+                simulation_train_rows,
+                simulation_validation_rows,
+                neighbors=int(evaluation["retrieval_neighbors"]),
+                seed=seed,
+            ),
+            "development_robustness": {
+                "probe_label_fraction": robustness_fraction,
+                "probe_seed": robustness_seed,
+                "perturbations": robustness,
+                "interpretation": (
+                    "gain sensitivity is diagnostic because absolute amplitude is unresolved, not a trained invariance"
+                ),
+            },
         }
         embedding_payloads[name] = (real_embeddings, simulation_embeddings)
 
@@ -149,6 +239,8 @@ def main() -> None:
         "profile": args.profile,
         "checkpoint_metadata": checkpoint_metadata,
         "results": results,
+        "label_efficiency_auc": label_efficiency_auc(results, "checkpoint"),
+        "development_variability": real_variability_summary(data),
         "sealed_splits_used": [],
     }
     (args.output_dir / "metrics.json").write_text(
@@ -160,7 +252,10 @@ def main() -> None:
         "project": "unsupervised-learning-flow-cytometry",
         "run_id": args.run_id,
         "dataset": f"{config['study']['real_dataset']} + {config['study']['simulation_dataset']}",
-        "repositories": {"unsupervised-learning-flow-cytometry": _revision(repo_root)},
+        "repositories": {
+            "unsupervised-learning-flow-cytometry": _revision(repo_root),
+            "particles2SNR-pipeline": _revision(repo_root.parent / "particles2SNR-pipeline"),
+        },
         "command": " ".join(sys.argv),
         "created_at": datetime.now(timezone.utc).isoformat(),
         "status": "complete",

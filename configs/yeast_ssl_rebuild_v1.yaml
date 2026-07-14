@@ -106,3 +106,21 @@ baselines:
       conv1d_epochs: 30
       batch_size: 32
       public_batch_size: 8
+
+evaluation:
+  calibration_bins: 10
+  retrieval_neighbors: 5
+  robustness_label_fraction: 0.10
+  profiles:
+    smoke:
+      grouped_bootstrap_repeats: 100
+    full:
+      grouped_bootstrap_repeats: 1000
+  perturbations:
+    gain_0p90: {kind: gain, value: 0.90, role: diagnostic_amplitude_sensitivity}
+    gain_1p10: {kind: gain, value: 1.10, role: diagnostic_amplitude_sensitivity}
+    offset_neg0p002: {kind: offset, value: -0.002, role: development_iqr_baseline_offset}
+    offset_pos0p002: {kind: offset, value: 0.002, role: development_iqr_baseline_offset}
+    shift_8us: {kind: shift_samples, value: 8, role: bounded_event_position}
+    noise_0p05: {kind: noise_fraction_signal_std, value: 0.05, role: bounded_sensor_noise}
+    center_mask_64us: {kind: center_mask_samples, value: 64, role: limited_missing_region}

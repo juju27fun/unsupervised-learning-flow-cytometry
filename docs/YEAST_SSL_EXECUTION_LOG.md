@@ -113,3 +113,11 @@ publishable estimates.
   `0.35` macro F1 at 10% proxy labels. MOMENT is about `0.30`, while RMS, raw,
   random, and PatchTST remain around `0.19-0.26`. Conv1D at one epoch collapses
   to one class and is runtime evidence only.
+- Frozen A1-A4 checkpoint probes reach only about `0.20-0.23` macro F1 at 10%
+  proxy labels in the same bounded sample, below the handcrafted baseline.
+  Simulation-versus-real remains readily predictable for every checkpoint
+  (`ROC AUC 0.92-0.93`); one A4 adaptation epoch does not close the domain gap.
+- On 256 bounded real embeddings, random, A3, and A4 effective ranks are about
+  `6.83`, `5.93`, and `3.72`, respectively. This is an early warning that A4 may
+  concentrate the representation; full validation statistics and multiple
+  seeds are required before declaring collapse.

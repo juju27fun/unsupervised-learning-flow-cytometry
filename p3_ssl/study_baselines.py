@@ -10,7 +10,13 @@ import numpy as np
 import torch
 from scipy import signal as scipy_signal
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import balanced_accuracy_score, confusion_matrix, f1_score, recall_score
+from sklearn.metrics import (
+    balanced_accuracy_score,
+    confusion_matrix,
+    f1_score,
+    recall_score,
+    roc_auc_score,
+)
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 from torch import nn
@@ -239,6 +245,30 @@ def public_encoder_features(
     return np.concatenate(outputs).astype(np.float32), metadata
 
 
+@torch.no_grad()
+def checkpoint_encoder_features(
+    signals: np.ndarray,
+    checkpoint_path: Path,
+    *,
+    batch_size: int,
+    device: torch.device,
+) -> tuple[np.ndarray, dict[str, Any]]:
+    checkpoint = torch.load(checkpoint_path, map_location="cpu", weights_only=False)
+    model = YeastStudyModel(YeastStudyModelConfig(**checkpoint["model_config"]))
+    model.load_state_dict(checkpoint["model_state"])
+    model.to(device).eval()
+    outputs = []
+    for batch in _iter_batches(signals, batch_size):
+        outputs.append(model(batch.unsqueeze(1).to(device))["embedding"].cpu().numpy())
+    metadata = {
+        "cell": checkpoint["cell"],
+        "protocol": checkpoint["protocol"],
+        "profile": checkpoint["profile"],
+        "seed": checkpoint["seed"],
+    }
+    return np.concatenate(outputs).astype(np.float32), metadata
+
+
 def prediction_metrics(
     labels: np.ndarray,
     predictions: np.ndarray,
@@ -280,6 +310,42 @@ def linear_probe(
         **prediction_metrics(data.labels[data.validation_indices], predictions, data.class_names),
         "n_probe_events": int(train.size),
         "n_probe_records": len({data.rows[int(index)]["record_id"] for index in train}),
+    }
+
+
+def simulation_real_domain_probe(
+    real_train: np.ndarray,
+    simulation_train: np.ndarray,
+    real_validation: np.ndarray,
+    simulation_validation: np.ndarray,
+    *,
+    seed: int,
+) -> dict[str, Any]:
+    train_features = np.concatenate([real_train, simulation_train])
+    train_labels = np.concatenate(
+        [np.zeros(len(real_train), dtype=np.int64), np.ones(len(simulation_train), dtype=np.int64)]
+    )
+    validation_features = np.concatenate([real_validation, simulation_validation])
+    validation_labels = np.concatenate(
+        [
+            np.zeros(len(real_validation), dtype=np.int64),
+            np.ones(len(simulation_validation), dtype=np.int64),
+        ]
+    )
+    model = make_pipeline(
+        StandardScaler(),
+        LogisticRegression(C=1.0, class_weight="balanced", max_iter=500, random_state=seed),
+    )
+    model.fit(train_features, train_labels)
+    probability = model.predict_proba(validation_features)[:, 1]
+    predictions = (probability >= 0.5).astype(np.int64)
+    return {
+        "roc_auc": float(roc_auc_score(validation_labels, probability)),
+        "balanced_accuracy": float(balanced_accuracy_score(validation_labels, predictions)),
+        "n_real_train": len(real_train),
+        "n_simulation_train": len(simulation_train),
+        "n_real_validation": len(real_validation),
+        "n_simulation_validation": len(simulation_validation),
     }
 
 

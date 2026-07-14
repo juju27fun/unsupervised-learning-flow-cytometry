@@ -269,12 +269,20 @@ def load_moment_official_model(
         cache_dir=cache_dir,
     )
     config = json.loads(Path(config_path).read_text(encoding="utf-8"))
-    config.update({"task_name": "pre-training", "seq_len": seq_len, "n_channels": 1})
+    config.update(
+        {
+            "task_name": "pre-training",
+            "seq_len": seq_len,
+            "n_channels": 1,
+            "randomly_initialize_backbone": True,
+        }
+    )
     model = MOMENTPipeline.from_pretrained(
         model_id,
         cache_dir=cache_dir,
         config=config,
         model_kwargs={"task_name": "pre-training", "seq_len": seq_len, "n_channels": 1},
+        strict=True,
     )
     model.init()
     model.to(device).eval()

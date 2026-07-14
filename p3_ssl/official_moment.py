@@ -50,7 +50,14 @@ def load_official_moment(
         cache_dir=cache_dir,
     )
     config = json.loads(Path(config_path).read_text(encoding="utf-8"))
-    config.update({"task_name": task_name, "n_channels": n_channels, "seq_len": seq_len})
+    config.update(
+        {
+            "task_name": task_name,
+            "n_channels": n_channels,
+            "seq_len": seq_len,
+            "randomly_initialize_backbone": True,
+        }
+    )
     model = MOMENTPipeline.from_pretrained(
         model_id,
         cache_dir=cache_dir,
@@ -60,6 +67,7 @@ def load_official_moment(
             "n_channels": n_channels,
             "seq_len": seq_len,
         },
+        strict=True,
     )
     model.init()
     model.to(device)

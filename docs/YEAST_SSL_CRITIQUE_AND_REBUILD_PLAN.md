@@ -419,6 +419,24 @@ The audit must report event-level precision and recall with uncertainty and the
 retention rate by group, quality, duration, and acquisition. Failure to establish
 acceptable event recall blocks representation claims.
 
+Before annotation, the Gate 1 detector thresholds are frozen as follows:
+
+- retained-candidate precision at least `0.90`, with Wilson 95% lower bound at
+  least `0.80`;
+- retained-event recall on complete traces at least `0.85`, with Wilson 95%
+  lower bound at least `0.75`;
+- retained precision at least `0.75` and recall at least `0.70` in every source
+  group represented in the audit;
+- no more than `0.25` of reviewed rejected candidates may contain a true event;
+- at least two independent acquisitions are required for acquisition-OOD
+  readiness.
+
+Report both the balanced stratified audit estimates with Wilson intervals and
+population-weighted point estimates using stratum expansion weights. These are
+dataset-validity thresholds, not downstream performance endpoints. The
+registered candidate-review CSV files are immutable templates; completed
+annotations are stored and registered separately.
+
 ### 5.4 Canonical input selection
 
 Candidate physical windows are evaluated before training, for example raw 4096

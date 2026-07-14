@@ -105,6 +105,24 @@ through `--review-dir` to `scripts/analysis/analyze_yeast_event_review.py`.
 The analyzer archives the completed CSVs with its metrics. The exact pass
 thresholds are frozen in Section 5.3 of the rebuild plan.
 
+### Acquisition blocker audit and intake readiness
+
+The workspace, its 2026-07-10 archive, `Downloads`, and registered dataset
+catalog were searched for a second yeast acquisition. Only
+`Downloads/Yeast_folder` was found; its 6,172 signal paths and counts match the
+already imported `yeast-hf-10-5-20260610@v1` source. No forgotten independent
+session is available locally.
+
+The data owner now supports a future multi-acquisition v3 contract: record and
+capture-block IDs are namespaced, exact traces crossing acquisitions are
+rejected, every acquisition has a frozen `development` or
+`sealed_ood_test` role, raw signals resolve by registered dataset ID, review
+sampling and metrics are acquisition-stratified, and representation
+normalization remains development-train-only. The end-to-end intake procedure
+is documented in
+[`YEAST_ACQUISITION_INTAKE.md`](https://github.com/juju27fun/particles2SNR-pipeline/blob/reorg/workspace-20260710/YEAST_ACQUISITION_INTAKE.md).
+This closes the software-readiness risk, not Gate 1 itself.
+
 ## Development Smoke Evidence
 
 All values below are runtime/development diagnostics from

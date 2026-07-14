@@ -854,15 +854,21 @@ classified by data contract, split safety, and evidence maturity.
 
 No GPU training is needed for the next step.
 
-1. Produce a dataset and acquisition inventory.
-2. Measure event-duration and context coverage for candidate input windows.
-3. Audit source-recording and acquisition-group leakage in current manifests.
-4. Build the manually reviewed yeast event subset.
-5. Quantify strict/medium/rejected selection bias.
-6. Freeze the retained/nuisance factor table.
-7. Define registered dataset ownership with `particles2SNR-pipeline`.
-8. Write the grouped split and baseline evaluation specification.
-9. Only then implement the new data loaders and configs.
+1. Complete the 73 candidate-window and 73 full-trace v5 reviews for the
+   current acquisition and run the frozen Gate 1 analyzer.
+2. Acquire and document a second genuinely independent yeast session.
+3. Ingest it through the data-owner
+   [`YEAST_ACQUISITION_INTAKE.md`](https://github.com/juju27fun/particles2SNR-pipeline/blob/reorg/workspace-20260710/YEAST_ACQUISITION_INTAKE.md)
+   protocol, with the current session as development and the new session as
+   `sealed_ood_test`.
+4. Build the acquisition-stratified candidate audit and require per-acquisition
+   detector precision and recall to pass without changing the frozen detector.
+5. If Gate 1 passes, register new source-index, candidate, and representation
+   versions; otherwise treat the inspected acquisition as development and
+   reserve a third acquisition for final OOD evaluation.
+6. Run the already frozen multi-seed A0-A4 matrix using development splits only.
+7. Freeze the winning baseline, probe, statistical comparisons, and report
+   layout, then open the sealed acquisition once for Gate 5.
 
 ## 16. Definition of Done
 

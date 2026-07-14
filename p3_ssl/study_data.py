@@ -25,6 +25,7 @@ FACTOR_RANGES = {
     "relative_component_amplitude": (0.40, 1.00),
     "frequency_separation_khz": (0.0, 8.0),
 }
+SEALED_REAL_SPLITS = frozenset({"sealed_acquisition_test"})
 
 
 def _read_csv(path: Path) -> list[dict[str, str]]:
@@ -61,7 +62,18 @@ def validate_study_dataset_contracts(real_root: Path, simulation_root: Path) -> 
 
 
 class RealEventDataset(Dataset[dict[str, Any]]):
-    def __init__(self, root: Path, split: str, max_events: int | None = None) -> None:
+    def __init__(
+        self,
+        root: Path,
+        split: str,
+        max_events: int | None = None,
+        *,
+        allow_sealed_split: bool = False,
+    ) -> None:
+        if split in SEALED_REAL_SPLITS and not allow_sealed_split:
+            raise PermissionError(
+                f"Split {split} is sealed; open it explicitly only for the frozen final evaluation"
+            )
         self.root = root
         self.signals = np.load(root / "signals.npy", mmap_mode="r")
         rows = [row for row in _read_csv(root / "events.csv") if row["development_split"] == split]
@@ -89,6 +101,7 @@ class RealEventDataset(Dataset[dict[str, Any]]):
             "source_group": row["source_group"],
             "condition_id": row["condition_id"],
             "acquisition_id": row["acquisition_id"],
+            "acquisition_role": row.get("acquisition_role", ""),
             "quality": row["quality"],
         }
 

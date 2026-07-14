@@ -14,8 +14,8 @@ manuscript.
 | 0: provenance and ownership | Pass for required real and synthetic inputs | Registered IDs listed below; full checksum validation passed; generation code is in `particles2SNR-pipeline` | Source/model implementation may proceed |
 | 1: event and split validity | Fail | Manual candidate and full-trace review are pending; only one independent acquisition is documented | No final biological or acquisition-OOD training claim |
 | 2: input and information contract | Pass | P3 loaders, config, masking, loss, and simulator policy enforce the frozen contract | Smoke training authorized |
-| 3: baseline readiness | In progress | The first split was invalid for four-group diagnostics; v2 fixes it, but the complete same-input matrix is pending | Block A1-A4 promotion |
-| 4: pretext validity | Smoke evidence only | A1-A4 run locally and reconstruction beats interpolation/nearest controls; full multi-seed evidence is absent | Block full scientific claim |
+| 3: baseline readiness | Runtime complete, scientific matrix pending | All A0 methods completed on pfcalcul with the corrected split; the grouped multi-seed matrix is absent | Block A1-A4 promotion |
+| 4: pretext validity | CUDA smoke evidence only | A1-A4 completed on pfcalcul and reconstruction beats interpolation/nearest controls; one epoch and one seed are insufficient | Block full scientific claim |
 | 5: scientific promotion | Not started | No predeclared multi-seed evidence | OOD test remains unavailable/sealed |
 | 6: optional methods | Not authorized | Gates 1-5 incomplete | No domain alignment or simulator inversion |
 
@@ -25,8 +25,8 @@ manuscript.
 |---|---|---|
 | `yeast-hf-10-5-20260610@v1` | Immutable raw signals, microscopy images, and acquisition notes | One documented date/configuration |
 | `yeast-source-index@v2` | Duplicate-family-safe, source-group-stratified 32-record capture-block metadata | Splits are in-session development splits only |
-| `yeast-event-candidates@v4` | Unchanged quality-decoupled candidates with corrected splits and review queues | Manual annotation pending |
-| `yeast-events-representation@v2` | Frozen `10617 x 4096` real event tensor with corrected splits | Folder conditions are acquisition-level proxies |
+| `yeast-event-candidates@v5` | Same 11,099 candidates as v4, with corrected retained/rejected/missed review fields | Manual annotation pending; registered templates are immutable |
+| `yeast-events-representation@v2` | Frozen `10617 x 4096` real event tensor built from the candidate-identical v4 audit | Folder conditions are acquisition-level proxies |
 | `yeast-passage-simulations@v1` | `14000 x 4096` paired-view identifiable passage simulations | Generic passage factors are not yeast morphology labels |
 
 ## Audit Findings
@@ -48,6 +48,11 @@ manuscript.
   source index uses deterministic source-group-stratified 32-record blocks;
   every source group now appears in train, validation, and sealed in-session
   test without crossing a block or duplicate family.
+- The v4 full-trace form could not distinguish false retained candidates from
+  true rejected events. V5 leaves every candidate and review signal unchanged
+  but records retained, rejected, and missed counts separately. Completed
+  annotations must be stored as a new versioned dataset, never written into the
+  registered v5 templates.
 - A first candidate-audit build failed while serializing mixed event/background
   review rows. The partial dataset was quarantined; the schema now has a
   regression test.
@@ -87,16 +92,18 @@ absolute physical amplitude are explicitly excluded targets.
 
 ## Immediate Next Check
 
-Complete the same-input A0 baseline infrastructure and run local/remote smoke
-checks against the v2 representation dataset. Local A1-A4 smoke runs already
-show nontrivial reconstruction, but A3 physics heads do not yet beat constant
-or majority controls. Full training remains blocked until manual event review;
-a new independent acquisition is still required for the primary OOD endpoint.
+Complete the 73 candidate-window and 73 full-trace v5 annotations, run the
+predeclared review analyzer, and register the completed annotations separately.
+Even a passing detector audit will not unlock the primary OOD endpoint: a
+second independent acquisition is required. Full training remains blocked
+until both requirements are satisfied.
 
 ## Development Smoke Evidence
 
-All values below are runtime/development diagnostics on bounded samples, not
-publishable estimates.
+All values below are runtime/development diagnostics from
+`yeast-pfcalcul-smoke-v3` on an A30 MIG GPU, not publishable estimates. Every
+artifact validates, records P3 revision `9392383` and data-owner revision
+`2b0370e`, and reports no use of a sealed split.
 
 - A1-A4 satisfy the frozen v2 input contract and never open `in_session_test`.
 - A1 real masked MSE is `0.890` versus interpolation `1.181`; A2/A3 simulation
@@ -109,15 +116,28 @@ publishable estimates.
 - Embedding-health instrumentation is active. The bounded 16-example runs have
   effective ranks around 2-3 and cannot decide collapse; GPU smoke must evaluate
   a larger validation sample against the random encoder control.
-- In the balanced A0 smoke, handcrafted time/frequency features reach about
-  `0.35` macro F1 at 10% proxy labels. MOMENT is about `0.30`, while RMS, raw,
-  random, and PatchTST remain around `0.19-0.26`. Conv1D at one epoch collapses
-  to one class and is runtime evidence only.
-- Frozen A1-A4 checkpoint probes reach only about `0.20-0.23` macro F1 at 10%
-  proxy labels in the same bounded sample, below the handcrafted baseline.
+- In the balanced A0 smoke, handcrafted time/frequency features reach `0.351`
+  macro F1 at 10% proxy labels. MOMENT reaches `0.298`; RMS, raw, random, and
+  PatchTST range from `0.190` to `0.230`. Conv1D at one epoch collapses to one
+  class and is runtime evidence only.
+- Frozen A1-A4 checkpoint probes reach `0.188`, `0.214`, `0.222`, and `0.221`
+  macro F1 at 10% proxy labels, all below the handcrafted baseline.
   Simulation-versus-real remains readily predictable for every checkpoint
-  (`ROC AUC 0.92-0.93`); one A4 adaptation epoch does not close the domain gap.
+  (`ROC AUC 0.921-0.927`); one A4 adaptation epoch does not close the domain gap.
 - On 256 bounded real embeddings, random, A3, and A4 effective ranks are about
   `6.83`, `5.93`, and `3.72`, respectively. This is an early warning that A4 may
   concentrate the representation; full validation statistics and multiple
   seeds are required before declaring collapse.
+
+## Remote Runtime Record
+
+- Slurm jobs `23482036` and `23482037` failed before training because MOMENT
+  attempted to resolve missing FLAN configuration and then redundant FLAN
+  weights. No metrics from these attempts are scientific evidence.
+- Job `23482038` completed the gate audit, A0, A1-A4, and checkpoint diagnostics
+  in about two minutes with CUDA enabled. The loader now initializes the MOMENT
+  architecture from its configuration and strictly loads the official MOMENT
+  checkpoint without downloading a second 3 GB backbone.
+- Remote and local smoke values agree to the expected deterministic tolerance.
+  This closes the execution-infrastructure question, not the representation
+  learning question.

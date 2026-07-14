@@ -148,3 +148,44 @@ artifact validates, records P3 revision `9392383` and data-owner revision
 - Remote and local smoke values agree to the expected deterministic tolerance.
   This closes the execution-infrastructure question, not the representation
   learning question.
+
+## Expanded Development Evaluation
+
+Slurm job `23482039` reused the `yeast-pfcalcul-smoke-v3` checkpoints without
+training and completed the expanded evaluation as `yeast-pfcalcul-eval-v1`.
+All artifacts validate and report no sealed split. Source metrics record P3
+revision `db14367`; the rendered report records `5ed6d89`; both record data
+owner revision `f802c2a`. The publication-shaped
+development figures and tables are under
+`artifacts/unsupervised-learning-flow-cytometry/reports/yeast-pfcalcul-eval-v1/`.
+
+These remain bounded one-seed smoke diagnostics on source-condition proxy
+labels:
+
+- At 10% proxy labels, handcrafted features reach `0.351` macro F1, MOMENT
+  `0.298`, and A1-A4 reach `0.188`, `0.214`, `0.222`, and `0.221`.
+- Capture-block paired bootstrap differences are A4-handcrafted `-0.114`
+  (`95% [-0.263, 0.021]`), A4-MOMENT `-0.057`
+  (`[-0.165, 0.051]`), A4-A3 `-0.004` (`[-0.050, 0.053]`), and A3-A2 `0.014`
+  (`[-0.048, 0.074]`). None supports promotion.
+- A1-A4 calibration is poor at the low-label endpoint (`ECE 0.477-0.527`,
+  multiclass Brier `1.129-1.193`). Conv1D's low ECE is not evidence of quality:
+  it predicts one class with low confidence and reaches only `0.10` macro F1.
+- Cross-recording top-1 proxy-label retrieval is `0.297-0.312` for A1-A4,
+  below the untrained random encoder (`0.320`). Quality-stratum purity remains
+  high (`0.69-0.72`), so retrieval does not demonstrate biological structure.
+- Simulation-real domain ROC AUC remains `0.921-0.927`; A4 does not materially
+  align the domains.
+- Every cell linearly recovers simulated Doppler and duration, including A1,
+  which never sees simulations. A3 does not improve these factors over A2.
+  Component separation, frequency separation, and relative component amplitude
+  remain at or below a constant prior; the physics objective has not established
+  multi-component physical organization in the one-epoch smoke.
+- Bounded noise and measured-IQR offsets preserve `0.92-0.99` of predictions,
+  but an 8-sample (`8 us`) shift preserves only `0.50-0.57`. Very small cosine
+  embedding distances therefore do not imply a stable downstream decision.
+
+The decision remains unchanged: do not add domain alignment, new architectures,
+or simulator inversion. Complete Gate 1, then run the frozen multi-seed matrix.
+If the full matrix reproduces these patterns, report a controlled negative
+result rather than searching post hoc for a positive A4 configuration.

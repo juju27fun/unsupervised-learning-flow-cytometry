@@ -10,7 +10,13 @@ from sklearn.metrics import balanced_accuracy_score, f1_score, mean_squared_erro
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 
-from .study_baselines import BaselineData, fit_linear_probe, prediction_metrics
+from .study_baselines import (
+    LOGISTIC_MAX_ITER,
+    BaselineData,
+    fit_linear_probe,
+    fit_logistic_with_diagnostics,
+    prediction_metrics,
+)
 from .study_data import CONTINUOUS_FACTORS, FACTOR_RANGES
 
 
@@ -238,6 +244,7 @@ def evaluate_linear_probe(
         **prediction_metrics(data.labels[validation], predictions, data.class_names),
         "n_probe_events": int(train.size),
         "n_probe_records": len({data.rows[int(index)]["record_id"] for index in train}),
+        "probe_optimization": model.probe_optimization_,
         "calibration": calibration_metrics(
             data.labels[validation], probabilities, n_bins=calibration_bins
         ),
@@ -429,9 +436,16 @@ def physical_embedding_diagnostics(
     count_validation = np.asarray([int(row["component_count"]) for row in validation_rows])
     count_model = make_pipeline(
         StandardScaler(),
-        LogisticRegression(C=1.0, class_weight="balanced", max_iter=500, random_state=seed),
+        LogisticRegression(
+            C=1.0,
+            class_weight="balanced",
+            max_iter=LOGISTIC_MAX_ITER,
+            random_state=seed,
+        ),
     )
-    count_model.fit(train_embeddings, count_train)
+    count_optimization = fit_logistic_with_diagnostics(
+        count_model, train_embeddings, count_train
+    )
     count_prediction = count_model.predict(validation_embeddings)
     majority = np.full_like(count_validation, np.bincount(count_train).argmax())
 
@@ -501,6 +515,7 @@ def physical_embedding_diagnostics(
             "majority_balanced_accuracy": float(
                 balanced_accuracy_score(count_validation, majority)
             ),
+            "optimization": count_optimization,
         },
         "nuisance_leakage_linear_probes": nuisance,
         "cross_latent_neighborhood_continuity": {

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import random
+import warnings
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable
@@ -9,6 +10,7 @@ from typing import Any, Iterable
 import numpy as np
 import torch
 from scipy import signal as scipy_signal
+from sklearn.exceptions import ConvergenceWarning
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import (
     balanced_accuracy_score,
@@ -31,6 +33,29 @@ from .pretrained_backbones import (
     load_patchtst_1ch_model,
 )
 from .study_model import YeastStudyModel, YeastStudyModelConfig
+
+
+LOGISTIC_MAX_ITER = 5000
+
+
+def fit_logistic_with_diagnostics(
+    model: Any, features: np.ndarray, labels: np.ndarray
+) -> dict[str, Any]:
+    """Fit a logistic pipeline and retain numerical convergence evidence."""
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always", ConvergenceWarning)
+        model.fit(features, labels)
+    convergence_warnings = [
+        warning for warning in caught if issubclass(warning.category, ConvergenceWarning)
+    ]
+    estimator = model.named_steps["logisticregression"]
+    return {
+        "solver": estimator.solver,
+        "max_iter": int(estimator.max_iter),
+        "n_iter": np.asarray(estimator.n_iter_, dtype=int).tolist(),
+        "convergence_warning_count": len(convergence_warnings),
+        "converged": not convergence_warnings,
+    }
 
 
 BASELINE_METHODS = {
@@ -317,11 +342,13 @@ def fit_linear_probe(
         LogisticRegression(
             C=1.0,
             class_weight="balanced",
-            max_iter=500,
+            max_iter=LOGISTIC_MAX_ITER,
             random_state=seed,
         ),
     )
-    model.fit(features[train], data.labels[train])
+    model.probe_optimization_ = fit_logistic_with_diagnostics(
+        model, features[train], data.labels[train]
+    )
     return model, train
 
 
@@ -346,9 +373,14 @@ def simulation_real_domain_probe(
     )
     model = make_pipeline(
         StandardScaler(),
-        LogisticRegression(C=1.0, class_weight="balanced", max_iter=500, random_state=seed),
+        LogisticRegression(
+            C=1.0,
+            class_weight="balanced",
+            max_iter=LOGISTIC_MAX_ITER,
+            random_state=seed,
+        ),
     )
-    model.fit(train_features, train_labels)
+    optimization = fit_logistic_with_diagnostics(model, train_features, train_labels)
     probability = model.predict_proba(validation_features)[:, 1]
     predictions = (probability >= 0.5).astype(np.int64)
     return {
@@ -358,6 +390,7 @@ def simulation_real_domain_probe(
         "n_simulation_train": len(simulation_train),
         "n_real_validation": len(real_validation),
         "n_simulation_validation": len(simulation_validation),
+        "optimization": optimization,
     }
 
 

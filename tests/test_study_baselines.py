@@ -96,3 +96,5 @@ def test_checkpoint_features_and_domain_probe(tmp_path: Path) -> None:
     )
     assert domain["roc_auc"] == 1.0
     assert domain["balanced_accuracy"] == 1.0
+    assert domain["optimization"]["converged"] is True
+    assert domain["optimization"]["max_iter"] == 5000

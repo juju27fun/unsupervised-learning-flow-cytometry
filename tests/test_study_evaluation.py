@@ -71,6 +71,8 @@ def test_rich_probe_reports_calibration_bootstrap_and_subgroups(tmp_path: Path) 
         "crop_edge_status",
     }
     assert 0.0 <= metrics["calibration"]["expected_calibration_error"] <= 1.0
+    assert metrics["probe_optimization"]["converged"] is True
+    assert metrics["probe_optimization"]["max_iter"] == 5000
     variability = real_variability_summary(data)
     assert variability["split"] == "development_train"
     assert variability["window_rms_quantiles"]["p95"] >= variability["window_rms_quantiles"]["p05"]
@@ -154,3 +156,4 @@ def test_physical_diagnostics_exclude_paired_latent_neighbors() -> None:
     assert result["scope"].endswith("remains sealed")
     assert result["cross_latent_neighborhood_continuity"]["neighbors"] == 2
     assert set(result["retained_factor_linear_probes"]) >= {"duration_ms", "doppler_khz"}
+    assert result["component_count_probe"]["optimization"]["converged"] is True

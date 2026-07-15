@@ -44,6 +44,10 @@ def main() -> None:
             "checkpoint_metrics": hashlib.sha256(args.checkpoint_metrics.read_bytes()).hexdigest(),
         },
         "outputs": [*summary["outputs"], "summary.json"],
+        "output_sha256": {
+            name: hashlib.sha256((args.output_dir / name).read_bytes()).hexdigest()
+            for name in [*summary["outputs"], "summary.json"]
+        },
         "sealed_splits_used": [],
     }
     (args.output_dir / "run.json").write_text(

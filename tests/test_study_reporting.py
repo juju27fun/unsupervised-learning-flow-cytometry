@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from p3_ssl.study_reporting import paired_bootstrap_comparisons
+from p3_ssl.study_reporting import _decision_summary, paired_bootstrap_comparisons
 
 
 def _row(key: str, name: str, values: list[float]) -> dict:
@@ -64,3 +64,60 @@ def test_paired_bootstrap_comparisons_pairs_representation_and_probe_seeds() -> 
     assert rows[0]["n_paired_runs"] == 4
     assert rows[0]["mean_difference"] == pytest.approx(0.1)
     assert rows[2]["mean_difference"] == pytest.approx(0.2)
+
+
+def test_decision_summary_enforces_primary_effect_and_domain_diagnostic() -> None:
+    a0 = {
+        "results": [
+            {"method": method, "label_fraction": 0.1, "macro_f1": value}
+            for method, value in (
+                ("rms", 0.1),
+                ("raw", 0.2),
+                ("handcrafted", 0.4),
+                ("random", 0.25),
+                ("moment", 0.35),
+                ("patchtst", 0.3),
+            )
+        ]
+    }
+
+    def metadata(cell: str, domain_auc: float, recovery: float) -> dict:
+        return {
+            "cell": cell,
+            "simulation_real_domain_probe": {"roc_auc": domain_auc},
+            "development_physical_fidelity": {
+                "retained_factor_linear_probes": {
+                    "duration_ms": {
+                        "relative_mse_reduction_vs_constant": recovery
+                    }
+                }
+            },
+        }
+
+    checkpoints = {
+        "checkpoint_metadata": {
+            "a2": metadata("A2", 0.8, 0.2),
+            "a3": metadata("A3", 0.9, 0.4),
+            "a4": metadata("A4", 0.95, 0.5),
+        }
+    }
+    comparisons = [
+        {
+            "left": "A4",
+            "right": "handcrafted",
+            "mean_difference": 0.01,
+            "ci_95_low": -0.01,
+        },
+        {
+            "left": "A4",
+            "right": "A3",
+            "mean_difference": 0.02,
+            "ci_95_low": 0.001,
+        },
+    ]
+    decision = _decision_summary(a0, checkpoints, comparisons)
+    assert decision["strongest_eligible_frozen_baseline"] == "handcrafted"
+    assert decision["promotion_decision"] == "do_not_promote_a4"
+    assert decision["criteria"]["primary_effect_at_least_minimum"] is False
+    assert decision["criteria"]["a4_vs_a3_interval_excludes_zero"] is True
+    assert decision["criteria"]["adaptation_reduces_mean_domain_auc"] is False

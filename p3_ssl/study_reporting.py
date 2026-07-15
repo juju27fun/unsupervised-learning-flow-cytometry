@@ -10,18 +10,26 @@ import numpy as np
 
 
 DISPLAY = {
+    "rms": "RMS",
+    "raw": "Raw signal",
     "handcrafted": "Handcrafted",
     "moment": "MOMENT",
+    "patchtst": "PatchTST",
     "random": "Random encoder",
+    "conv1d": "Supervised Conv1D",
     "A1": "A1 real SSL",
     "A2": "A2 synthetic reconstruction",
     "A3": "A3 physics-informed",
     "A4": "A4 physics + adaptation",
 }
 COLORS = {
+    "rms": "#999999",
+    "raw": "#332288",
     "handcrafted": "#0072B2",
     "moment": "#E69F00",
+    "patchtst": "#AA4499",
     "random": "#7F7F7F",
+    "conv1d": "#117733",
     "A1": "#009E73",
     "A2": "#CC79A7",
     "A3": "#D55E00",
@@ -179,7 +187,7 @@ def _plot_aggregate_curve(
 
 def _label_efficiency_figure(a0: dict[str, Any], checkpoints: dict[str, Any], output_dir: Path) -> list[str]:
     fig, ax = plt.subplots(figsize=(8.2, 4.8), constrained_layout=True)
-    for name in ("handcrafted", "moment", "random"):
+    for name in ("rms", "raw", "handcrafted", "random", "moment", "patchtst", "conv1d"):
         rows = [row for row in a0["results"] if row["method"] == name]
         _plot_aggregate_curve(ax, rows, name=name)
     for name in ("A1", "A2", "A3", "A4"):
@@ -192,6 +200,207 @@ def _label_efficiency_figure(a0: dict[str, Any], checkpoints: dict[str, Any], ou
     ax.grid(alpha=0.2)
     ax.legend(ncol=2, fontsize=8)
     return _save(fig, output_dir, "development_label_efficiency")
+
+
+def _method_summary_rows(
+    a0: dict[str, Any], checkpoints: dict[str, Any]
+) -> list[dict[str, Any]]:
+    rows = [
+        {**row, "display_method": DISPLAY[row["method"]]}
+        for row in a0["results"]
+    ] + [
+        {**row, "method": row["cell"], "display_method": DISPLAY[row["cell"]]}
+        for row in checkpoints["results"]
+    ]
+    output = []
+    for method in (*a0["methods"], "A1", "A2", "A3", "A4"):
+        for fraction in sorted(
+            {float(row["label_fraction"]) for row in rows if row["method"] == method}
+        ):
+            selected = [
+                float(row["macro_f1"])
+                for row in rows
+                if row["method"] == method
+                and float(row["label_fraction"]) == fraction
+            ]
+            output.append(
+                {
+                    "method": method,
+                    "display_method": DISPLAY[method],
+                    "label_fraction": fraction,
+                    "n_runs": len(selected),
+                    "macro_f1_mean": float(np.mean(selected)),
+                    "macro_f1_std": (
+                        float(np.std(selected, ddof=1)) if len(selected) > 1 else 0.0
+                    ),
+                    "macro_f1_min": float(np.min(selected)),
+                    "macro_f1_max": float(np.max(selected)),
+                }
+            )
+    return output
+
+
+def _checkpoint_diagnostic_rows(checkpoints: dict[str, Any]) -> list[dict[str, Any]]:
+    output = []
+    for name, metadata in sorted(checkpoints["checkpoint_metadata"].items()):
+        physics = metadata["development_physical_fidelity"]
+        retained = physics["retained_factor_linear_probes"]
+        robustness = [
+            float(value["prediction_agreement"])
+            for value in metadata["development_robustness"]["perturbations"].values()
+        ]
+        output.append(
+            {
+                "checkpoint": name,
+                "cell": metadata["cell"],
+                "representation_seed": metadata["seed"],
+                "domain_roc_auc": metadata["simulation_real_domain_probe"]["roc_auc"],
+                "domain_balanced_accuracy": metadata["simulation_real_domain_probe"][
+                    "balanced_accuracy"
+                ],
+                "real_effective_rank": metadata["real_embedding_health"]["effective_rank"],
+                "real_embedding_dimension": metadata["real_embedding_health"][
+                    "embedding_dimension"
+                ],
+                "real_mean_cosine_similarity": metadata["real_embedding_health"][
+                    "mean_off_diagonal_cosine_similarity"
+                ],
+                "retrieval_top1_proxy_purity": metadata["development_retrieval"][
+                    "top1_label_purity"
+                ],
+                "retrieval_top1_quality_purity": metadata["development_retrieval"][
+                    "top1_quality_purity"
+                ],
+                "retained_factor_mean_relative_mse_reduction": float(
+                    np.mean(
+                        [
+                            value["relative_mse_reduction_vs_constant"]
+                            for value in retained.values()
+                        ]
+                    )
+                ),
+                "component_count_balanced_accuracy": physics["component_count_probe"][
+                    "balanced_accuracy"
+                ],
+                "robustness_prediction_agreement_mean": float(np.mean(robustness)),
+                "robustness_prediction_agreement_min": float(np.min(robustness)),
+            }
+        )
+    return output
+
+
+def _domain_physics_figure(
+    checkpoints: dict[str, Any], output_dir: Path
+) -> list[str]:
+    rows = _checkpoint_diagnostic_rows(checkpoints)
+    fig, ax = plt.subplots(figsize=(7.3, 4.7), constrained_layout=True)
+    for cell in ("A1", "A2", "A3", "A4"):
+        selected = [row for row in rows if row["cell"] == cell]
+        physics = np.asarray(
+            [row["retained_factor_mean_relative_mse_reduction"] for row in selected]
+        )
+        domain = np.asarray([row["domain_roc_auc"] for row in selected])
+        ax.errorbar(
+            float(physics.mean()),
+            float(domain.mean()),
+            xerr=float(physics.std(ddof=1)),
+            yerr=float(domain.std(ddof=1)),
+            fmt="o",
+            capsize=3,
+            color=COLORS[cell],
+            markersize=7,
+            label=DISPLAY[cell],
+        )
+    ax.axhline(0.5, color="black", linestyle="--", linewidth=0.8, label="chance")
+    ax.set_xlabel("Mean retained-factor MSE reduction versus constant prior")
+    ax.set_ylabel("Simulation-versus-real ROC AUC")
+    ax.set_ylim(0.5, 1.01)
+    ax.set_title("Physical information versus simulation-real separability")
+    ax.grid(alpha=0.2)
+    ax.legend(fontsize=8, loc="lower right")
+    return _save(fig, output_dir, "development_domain_vs_physics")
+
+
+def _embedding_health_figure(
+    a0: dict[str, Any], checkpoints: dict[str, Any], output_dir: Path
+) -> list[str]:
+    points: list[tuple[str, list[dict[str, Any]]]] = []
+    for name in ("random", "moment", "patchtst"):
+        health = a0["method_metadata"][name]["embedding_health"]
+        points.append((name, [health]))
+    for cell in ("A1", "A2", "A3", "A4"):
+        points.append(
+            (
+                cell,
+                [
+                    metadata["real_embedding_health"]
+                    for metadata in checkpoints["checkpoint_metadata"].values()
+                    if metadata["cell"] == cell
+                ],
+            )
+        )
+    fig, ax = plt.subplots(figsize=(7.3, 4.7), constrained_layout=True)
+    for name, health_rows in points:
+        rank_fraction = np.asarray(
+            [row["effective_rank"] / row["embedding_dimension"] for row in health_rows]
+        )
+        cosine = np.asarray(
+            [row["mean_off_diagonal_cosine_similarity"] for row in health_rows]
+        )
+        ax.errorbar(
+            float(rank_fraction.mean()),
+            float(cosine.mean()),
+            xerr=float(rank_fraction.std(ddof=1)) if len(rank_fraction) > 1 else 0.0,
+            yerr=float(cosine.std(ddof=1)) if len(cosine) > 1 else 0.0,
+            fmt="o",
+            capsize=3,
+            color=COLORS[name],
+            markersize=7,
+            label=DISPLAY[name],
+        )
+    ax.set_xlabel("Effective rank / embedding dimension")
+    ax.set_ylabel("Mean off-diagonal cosine similarity")
+    ax.set_ylim(0.7, 1.005)
+    ax.set_title("Development embedding anisotropy diagnostic")
+    ax.grid(alpha=0.2)
+    ax.legend(fontsize=8, loc="lower right", ncol=2)
+    return _save(fig, output_dir, "development_embedding_health")
+
+
+def _class_recall_figure(
+    a0: dict[str, Any], checkpoints: dict[str, Any], output_dir: Path
+) -> list[str]:
+    methods = [*a0["methods"], "A1", "A2", "A3", "A4"]
+    rows = []
+    for method in methods:
+        source = a0 if method in a0["methods"] else checkpoints
+        key = "method" if source is a0 else "cell"
+        rows.append(
+            [
+                float(
+                    np.mean(
+                        [
+                            row["per_class_recall"][class_name]
+                            for row in source["results"]
+                            if row[key] == method
+                            and float(row["label_fraction"]) == 0.1
+                        ]
+                    )
+                )
+                for class_name in a0["class_names"]
+            ]
+        )
+    values = np.asarray(rows)
+    fig, ax = plt.subplots(figsize=(7.6, 5.3), constrained_layout=True)
+    image = ax.imshow(values, aspect="auto", vmin=0.0, vmax=1.0, cmap="viridis")
+    ax.set_xticks(np.arange(len(a0["class_names"])), a0["class_names"])
+    ax.set_yticks(np.arange(len(methods)), [DISPLAY[method] for method in methods])
+    ax.set_title("Mean development recall by source-condition proxy at 10% labels")
+    for row in range(values.shape[0]):
+        for column in range(values.shape[1]):
+            ax.text(column, row, f"{values[row, column]:.2f}", ha="center", va="center", color="white" if values[row, column] < 0.55 else "black", fontsize=7)
+    fig.colorbar(image, ax=ax, label="recall")
+    return _save(fig, output_dir, "development_class_recall")
 
 
 def _paired_figure(rows: list[dict[str, Any]], output_dir: Path) -> list[str]:
@@ -314,12 +523,118 @@ def _physical_figure(checkpoints: dict[str, Any], output_dir: Path) -> list[str]
     return _save(fig, output_dir, "development_physical_fidelity")
 
 
+def _decision_summary(
+    a0: dict[str, Any],
+    checkpoints: dict[str, Any],
+    comparisons: list[dict[str, Any]],
+) -> dict[str, Any]:
+    eligible = ("rms", "raw", "handcrafted", "random", "moment", "patchtst")
+    baseline_means = {
+        method: float(
+            np.mean(
+                [
+                    row["macro_f1"]
+                    for row in a0["results"]
+                    if row["method"] == method
+                    and float(row["label_fraction"]) == 0.1
+                ]
+            )
+        )
+        for method in eligible
+    }
+    strongest = max(baseline_means, key=baseline_means.get)
+    primary = next(
+        row for row in comparisons if row["left"] == "A4" and row["right"] == strongest
+    )
+    adaptation = next(
+        row for row in comparisons if row["left"] == "A4" and row["right"] == "A3"
+    )
+    physics = {}
+    for cell in ("A2", "A4"):
+        metadata = [
+            value
+            for value in checkpoints["checkpoint_metadata"].values()
+            if value["cell"] == cell
+        ]
+        factors = metadata[0]["development_physical_fidelity"][
+            "retained_factor_linear_probes"
+        ]
+        physics[cell] = {
+            factor: float(
+                np.mean(
+                    [
+                        value["development_physical_fidelity"][
+                            "retained_factor_linear_probes"
+                        ][factor]["relative_mse_reduction_vs_constant"]
+                        for value in metadata
+                    ]
+                )
+            )
+            for factor in factors
+        }
+    domain_auc = {
+        cell: [
+            value["simulation_real_domain_probe"]["roc_auc"]
+            for value in checkpoints["checkpoint_metadata"].values()
+            if value["cell"] == cell
+        ]
+        for cell in ("A3", "A4")
+    }
+    minimum_effect = 0.03
+    return {
+        "schema_version": 1,
+        "scope": "single-acquisition development proxy endpoint; not morphology or OOD",
+        "minimum_effect_macro_f1": minimum_effect,
+        "strongest_eligible_frozen_baseline": strongest,
+        "baseline_10pct_macro_f1_means": baseline_means,
+        "criteria": {
+            "primary_effect_at_least_minimum": bool(
+                primary["mean_difference"] >= minimum_effect
+            ),
+            "primary_interval_excludes_zero": bool(primary["ci_95_low"] > 0.0),
+            "a4_improves_over_a3": bool(adaptation["mean_difference"] > 0.0),
+            "a4_vs_a3_interval_excludes_zero": bool(adaptation["ci_95_low"] > 0.0),
+            "all_retained_factor_means_improve_over_a2": bool(all(
+                physics["A4"][factor] > physics["A2"][factor]
+                for factor in physics["A2"]
+            )),
+            "simulation_real_separability_reported": True,
+            "adaptation_reduces_mean_domain_auc": bool(
+                np.mean(domain_auc["A4"]) < np.mean(domain_auc["A3"])
+            ),
+        },
+        "primary_comparison": primary,
+        "adaptation_comparison": adaptation,
+        "retained_factor_mean_recovery": physics,
+        "simulation_real_domain_auc": domain_auc,
+        "promotion_decision": "do_not_promote_a4",
+        "decision_reason": (
+            "A4 does not exceed the strongest eligible frozen baseline by the "
+            "predeclared 0.03 macro-F1 effect and its paired interval includes zero."
+        ),
+        "interpretation_limits": [
+            "The endpoint is a source-condition proxy from one acquisition, not yeast morphology.",
+            "No acquisition-OOD test exists, so the decision is in-session only.",
+            "Perfect quality-stratum retrieval purity indicates a strong quality shortcut.",
+            "High simulation-real AUC indicates that real adaptation did not close the domain gap.",
+        ],
+    }
+
+
 def build_development_report(a0_path: Path, checkpoint_path: Path, output_dir: Path) -> dict[str, Any]:
     a0 = _read_json(a0_path)
     checkpoints = _read_json(checkpoint_path)
     comparisons = paired_bootstrap_comparisons(a0, checkpoints)
     output_dir.mkdir(parents=True, exist_ok=False)
     _write_csv(output_dir / "paired_bootstrap_differences.csv", comparisons)
+    _write_csv(
+        output_dir / "development_method_summary.csv",
+        _method_summary_rows(a0, checkpoints),
+    )
+    _write_csv(
+        output_dir / "development_checkpoint_diagnostics.csv",
+        _checkpoint_diagnostic_rows(checkpoints),
+    )
 
     probe_rows = []
     for row in a0["results"]:
@@ -349,12 +664,25 @@ def build_development_report(a0_path: Path, checkpoint_path: Path, output_dir: P
             }
         )
     _write_csv(output_dir / "development_probe_metrics.csv", probe_rows)
-    outputs = ["paired_bootstrap_differences.csv", "development_probe_metrics.csv"]
+    decision = _decision_summary(a0, checkpoints, comparisons)
+    (output_dir / "decision_summary.json").write_text(
+        json.dumps(decision, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
+    outputs = [
+        "paired_bootstrap_differences.csv",
+        "development_method_summary.csv",
+        "development_checkpoint_diagnostics.csv",
+        "development_probe_metrics.csv",
+        "decision_summary.json",
+    ]
     outputs += _label_efficiency_figure(a0, checkpoints, output_dir)
     outputs += _paired_figure(comparisons, output_dir)
     outputs += _retrieval_figure(a0, checkpoints, output_dir)
     outputs += _robustness_figure(checkpoints, output_dir)
     outputs += _physical_figure(checkpoints, output_dir)
+    outputs += _domain_physics_figure(checkpoints, output_dir)
+    outputs += _embedding_health_figure(a0, checkpoints, output_dir)
+    outputs += _class_recall_figure(a0, checkpoints, output_dir)
     summary = {
         "schema_version": 1,
         "status": "complete",
@@ -362,6 +690,7 @@ def build_development_report(a0_path: Path, checkpoint_path: Path, output_dir: P
         "source_a0": str(a0_path),
         "source_checkpoints": str(checkpoint_path),
         "paired_comparisons": comparisons,
+        "decision": decision,
         "outputs": outputs,
         "sealed_splits_used": [],
     }

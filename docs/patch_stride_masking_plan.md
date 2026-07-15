@@ -1,5 +1,12 @@
 # Patch, Stride, and Masking Audit
 
+> **Historical audit notice (updated 2026-07-15).** The completed rebuilt study
+> froze non-overlapping 16-sample patches, 25% contiguous masks of
+> 0.128-0.512 ms, and a 0.016 ms guard on the 1 MHz event-crop contract. The
+> candidate grid below documents the earlier visual audit, not an open
+> hyperparameter search. See
+> [`YEAST_SSL_REBUILT_STUDY_REPORT.md`](YEAST_SSL_REBUILT_STUDY_REPORT.md).
+
 The first P3_SSL gate is visual, not a training score. Before accepting overlap,
 generate a PDF that shows where tokens fall on the decimated signal.
 

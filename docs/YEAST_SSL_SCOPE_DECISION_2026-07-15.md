@@ -38,3 +38,15 @@ split-integrity, duplicate, and information-contract checks pass. The original
 acquisition-OOD component of Gate 5 remains unavailable. The final decision is
 therefore an in-session scientific comparison, and every final table and figure
 must carry that scope.
+
+## Execution Outcome
+
+The authorized matrix completed on pfcalcul with representation seeds 42, 43,
+and 44. The method and probe protocol were frozen, then `in_session_test` was
+opened once in Slurm job `23487080`.
+
+A4 improved over A3 by `+0.0235` macro F1, but remained below handcrafted
+features by `-0.0805`, with a 95% hierarchical bootstrap interval entirely
+below zero (`[-0.1040, -0.0484]`). A4 is not promoted. No OOD, morphology, or
+independent-reviewer claim was introduced. The complete interpretation is in
+[`YEAST_SSL_REBUILT_STUDY_REPORT.md`](YEAST_SSL_REBUILT_STUDY_REPORT.md).

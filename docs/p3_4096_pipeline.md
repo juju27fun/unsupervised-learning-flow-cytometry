@@ -1,11 +1,12 @@
 # Pipeline P3 Canonique 4096
 
-> **Research-status notice (2026-07-14).** This document describes the current
-> implementation, not an authorized final scientific protocol. The same tensor
-> length has historically represented both a decimated full trace and a raw
-> centered crop, which are not physically equivalent. Use
-> [`YEAST_SSL_CRITIQUE_AND_REBUILD_PLAN.md`](YEAST_SSL_CRITIQUE_AND_REBUILD_PLAN.md)
-> to select and freeze one physical input contract before new large training.
+> **Historical implementation notice (updated 2026-07-15).** This document
+> predates the completed rebuilt study. Its `window_zscore` and decimated-4096
+> descriptions are not the frozen `yeast-ssl-rebuild-v1` contract. The final
+> contract is a filtered, anti-aliased, globally normalized 4.096 ms event crop;
+> see
+> [`YEAST_SSL_REBUILT_STUDY_REPORT.md`](YEAST_SSL_REBUILT_STUDY_REPORT.md).
+> Retain the material below only for legacy implementation context.
 
 Cette note fixe l'état cible actuel de P3 : les datasets événementiels, les
 sweeps synthétiques et les comparaisons de latent spaces utilisent des entrées

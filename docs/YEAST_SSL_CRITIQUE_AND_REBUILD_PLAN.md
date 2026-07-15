@@ -1,6 +1,7 @@
 # Yeast Representation Learning: Scientific Critique and Rebuild Plan
 
-**Status:** pre-experiment redesign; no new large training run is authorized
+**Status:** execution complete; controlled negative result under the accepted
+single-acquisition scope
 
 **Date:** 2026-07-14
 
@@ -8,6 +9,26 @@
 P3 SSL
 
 **Execution record:** [`YEAST_SSL_EXECUTION_LOG.md`](YEAST_SSL_EXECUTION_LOG.md)
+
+**Final report:**
+[`YEAST_SSL_REBUILT_STUDY_REPORT.md`](YEAST_SSL_REBUILT_STUDY_REPORT.md)
+
+## Execution Outcome
+
+This document records the critique and preregistered design. Its original OOD
+ambition could not be completed because no second acquisition or more yeast
+material was available. On 2026-07-15, the project owner authorized a restricted
+single-acquisition experiment while explicitly prohibiting morphology and OOD
+claims. The frozen A0-A4 multi-seed matrix and one-time `in_session_test` were
+then completed on pfcalcul.
+
+A4 improved A3 but did not outperform the strongest handcrafted baseline. On
+the final in-session endpoint, A4 minus handcrafted was `-0.0805` macro F1 with
+a 95% hierarchical bootstrap interval `[-0.1040, -0.0484]`. Gate 5 therefore
+produced a controlled negative decision: do not promote A4 and do not continue
+architecture search under this protocol. The report linked above is the
+authoritative interpretation; prospective language below is preserved to show
+the reasoning that preceded execution.
 
 ## Executive Decision
 
@@ -774,7 +795,8 @@ Section 6.4.
 ### Phase 3: final evaluation
 
 1. Freeze the encoder and probe protocol.
-2. Open the OOD test once.
+2. Open the OOD test once, or the explicitly scoped in-session test if an OOD
+   acquisition is unavailable under a documented waiver.
 3. Run paired statistical comparisons.
 4. Generate the final tables and figures from manifested results.
 5. Apply Gate 5 without post-hoc exceptions.
@@ -867,36 +889,33 @@ classified by data contract, split safety, and evidence maturity.
 
 ## 15. Immediate Next Actions
 
-No GPU training is needed for the next step.
+The execution plan is complete. No additional GPU training is authorized under
+`yeast-ssl-rebuild-v1`.
 
-1. Complete the 73 candidate-window and 73 full-trace v5 reviews for the
-   current acquisition and run the frozen Gate 1 analyzer.
-2. Acquire and document a second genuinely independent yeast session.
-3. Ingest it through the data-owner
-   [`YEAST_ACQUISITION_INTAKE.md`](https://github.com/juju27fun/particles2SNR-pipeline/blob/reorg/workspace-20260710/YEAST_ACQUISITION_INTAKE.md)
-   protocol, with the current session as development and the new session as
-   `sealed_ood_test`.
-4. Build the acquisition-stratified candidate audit and require per-acquisition
-   detector precision and recall to pass without changing the frozen detector.
-5. If Gate 1 passes, register new source-index, candidate, and representation
-   versions; otherwise treat the inspected acquisition as development and
-   reserve a third acquisition for final OOD evaluation.
-6. Run the already frozen multi-seed A0-A4 matrix using development splits only.
-7. Freeze the winning baseline, probe, statistical comparisons, and report
-   layout, then open the sealed acquisition once for Gate 5.
+1. Use the final report for manuscript text, captions, and limitation wording.
+2. Preserve all manifested runs and the one-time final-test evidence.
+3. Freeze A4 as a negative result and handcrafted features as the strongest
+   practical representation for this restricted endpoint.
+4. Start a separately preregistered follow-up only if a new independent
+   acquisition, independent review, or true morphology labels become available.
+5. Do not use the final in-session split for additional selection or tuning.
 
 ## 16. Definition of Done
 
-The rebuilt study is complete when:
+Under the original cross-acquisition objective, independent reviewer evidence
+and an acquisition-OOD test remain unavailable. Under the explicitly accepted
+single-acquisition scope, the rebuilt study is complete because:
 
 - data and simulation ownership is correct;
 - one physical input contract is used consistently;
-- event extraction is independently validated;
+- event extraction is manually validated on the available acquisition, with
+  the single-reviewer limitation reported;
 - source and acquisition leakage are excluded;
 - nuisance and retained variables are coherent with preprocessing and losses;
 - raw, handcrafted, random, supervised, and pretrained baselines are complete;
 - the minimal A1-A4 matrix is complete over all seeds;
-- the sealed OOD test is evaluated once;
+- the frozen in-session test is evaluated once and OOD evidence is explicitly
+  marked unavailable;
 - uncertainty and subgroup failures are reported;
 - Gate 5 produces an unambiguous positive or negative decision;
 - a complete evidence-linked specialist report can be written without relying
@@ -912,5 +931,9 @@ is not synthetic-only training. It is a controlled sequence of physics-informed
 synthetic pretraining, unlabeled real adaptation, and grouped held-out real
 evaluation against strong pretrained and supervised baselines.
 
-Until the redesign gates pass, the current P3 outputs are exploratory
-representation evidence, not a frozen yeast SSL conclusion.
+The frozen conclusion is now available in
+[`YEAST_SSL_REBUILT_STUDY_REPORT.md`](YEAST_SSL_REBUILT_STUDY_REPORT.md). The
+method learns useful simulated physical structure and benefits from real
+adaptation, but it does not beat the handcrafted representation on the final
+restricted endpoint. Further tuning on the same acquisition would weaken the
+study by reusing an exhausted test, so the protocol stops here.

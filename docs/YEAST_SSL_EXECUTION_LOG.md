@@ -12,12 +12,12 @@ manuscript.
 | Gate | State | Evidence | Decision |
 |---|---|---|---|
 | 0: provenance and ownership | Pass for required real and synthetic inputs | Registered IDs listed below; full checksum validation passed; generation code is in `particles2SNR-pipeline` | Source/model implementation may proceed |
-| 1: event and split validity | Detector sub-gate pass; overall blocked | The independent v7 review gives candidate precision `48/48` and full-trace `TP=85`, `FP=1`, `FN=1`; reviewer reliability and a second acquisition are absent | Use v7 for single-acquisition development only; keep final biological and acquisition-OOD claims blocked |
+| 1: event and split validity | Conditional pass under scope waiver | The v7 review gives candidate precision `48/48` and full-trace `TP=85`, `FP=1`, `FN=1`; reviewer reliability and a second acquisition remain absent | Authorize in-session study only; biological and acquisition-OOD claims remain prohibited |
 | 2: input and information contract | Pass | P3 loaders, config, masking, loss, and simulator policy enforce the frozen contract | Smoke training authorized |
-| 3: baseline readiness | Runtime complete, scientific matrix pending | All A0 methods completed on pfcalcul with the corrected split; the grouped multi-seed matrix is absent | Block A1-A4 promotion |
-| 4: pretext validity | CUDA smoke evidence only | A1-A4 completed on pfcalcul and reconstruction beats interpolation/nearest controls; one epoch and one seed are insufficient | Block full scientific claim |
-| 5: scientific promotion | Not started | No predeclared multi-seed evidence | OOD test remains unavailable/sealed |
-| 6: optional methods | Not authorized | Gates 1-5 incomplete | No domain alignment or simulator inversion |
+| 3: baseline readiness | Pass | Full A0 baselines and label-efficiency evaluation completed with converged probes | Continue frozen A1-A4 comparison |
+| 4: pretext validity | Pass with embedding-health warning | All seeds beat interpolation, but A1/A2 nearly collapse and A3/A4 remain anisotropic | Interpret reconstruction separately from utility |
+| 5: scientific promotion | Controlled negative | Development rejected promotion; one-time in-session test confirms A4 below handcrafted | Do not promote A4; no OOD claim |
+| 6: optional methods | Not authorized | Gate 5 failed and stop rule applies | No post-hoc alignment, inversion, or architecture search |
 
 ## Registered Inputs
 
@@ -104,7 +104,11 @@ amplitude, and frequency separation) while independently resampling phase,
 position, noise, output RMS, baseline drift, and sensor response. Morphology and
 absolute physical amplitude are explicitly excluded targets.
 
-## Immediate Next Check
+## Historical Gate 1 Check
+
+This section records the state before the 2026-07-15 scope waiver and full
+matrix. Its requests for more acquisition and reviewer evidence remain valid
+future-study requirements, but no longer block the completed restricted study.
 
 The independent v7 event review is complete. The authoritative adjudicated
 analysis is
@@ -245,7 +249,109 @@ labels:
   but an 8-sample (`8 us`) shift preserves only `0.50-0.57`. Very small cosine
   embedding distances therefore do not imply a stable downstream decision.
 
-The decision remains unchanged: do not add domain alignment, new architectures,
-or simulator inversion. Complete Gate 1, then run the frozen multi-seed matrix.
-If the full matrix reproduces these patterns, report a controlled negative
-result rather than searching post hoc for a positive A4 configuration.
+The decision at this point was unchanged: do not add domain alignment, new
+architectures, or simulator inversion. The later full matrix reproduced these
+patterns and therefore triggered the planned controlled-negative stop rule.
+
+## Restricted-Scope Authorization
+
+No second acquisition or additional yeast material was available. The project
+owner accepted the v7 review as sufficient for a restricted in-session study in
+[`YEAST_SSL_SCOPE_DECISION_2026-07-15.md`](YEAST_SSL_SCOPE_DECISION_2026-07-15.md).
+Independent reviewer reliability and acquisition-OOD validation were waived as
+execution requirements, not counted as passed evidence. The frozen config
+prohibits morphology and OOD claims and permits one opening of
+`in_session_test` after development selection.
+
+Remote preflight on the canonical pfcalcul workspace validated the complete
+v3 real and simulation datasets by checksum. Gates 0 and 2 passed, Gate 1
+conditionally authorized the restricted endpoint, and no OOD dataset was
+present. Duplicate full submissions were excluded before queueing.
+
+## Full Multi-Seed Matrix
+
+Queue item `20260715_yeast_ssl_full_v3`, Slurm job `23487036`, completed in
+`00:59:51` on an RTX PRO 6000 Blackwell GPU with return code 0. It produced A0,
+A1-A4 for representation seeds 42, 43, and 44, and complete checkpoint
+diagnostics. Every collected artifact validates and reports no sealed split.
+
+At 10% development labels, macro F1 means were handcrafted `0.3561`, MOMENT
+`0.3287`, A3 `0.3345`, and A4 `0.3505`. Hierarchical paired differences were:
+
+- A4 minus handcrafted: `-0.0056`, 95% `[-0.0260, 0.0124]`;
+- A4 minus MOMENT: `+0.0219`, `[-0.0129, 0.0371]`;
+- A4 minus A3: `+0.0160`, `[0.0008, 0.0281]`;
+- A3 minus A2: `+0.0457`, `[0.0230, 0.0584]`.
+
+A4 therefore improved A3 but failed the `0.03` practical-effect threshold and
+did not exceed the strongest eligible baseline. The frozen development decision
+was `do_not_promote_a4`.
+
+## Corrective Convergence Evaluation
+
+The first full evaluator emitted 15 scikit-learn convergence warnings at the
+500-iteration cap. Every label, domain, and component logistic fit was
+instrumented and the cap was raised to 5,000. Queue item
+`20260715_yeast_ssl_converged_eval_v3`, Slurm job `23487071`, completed in
+`00:06:30`.
+
+All 204 fits converged, the maximum observed iteration count was 551, and no
+convergence warning remained. Only 12 of 180 macro-F1 rows changed; the maximum
+absolute change was `0.002782`, and every paired 10% comparison retained its
+direction and decision. The corrective run removed an optimization ambiguity
+without changing scientific selection.
+
+## Development Diagnostics
+
+The publication report is
+`artifacts/unsupervised-learning-flow-cytometry/reports/yeast-pfcalcul-full-v3-publication/`.
+It records these main mechanism findings:
+
+- A3 improves A2 retained-factor recovery and source-proxy probing;
+- A4 improves A3, but not enough for practical promotion;
+- simulation-real ROC AUC is `0.9990-0.9994` for A3 and `0.9995-0.9998`
+  for A4, so adaptation does not close the domain gap;
+- A1/A2 effective rank is about `1.2-1.7/96`; A3/A4 improve to only
+  `2.7-4.2/96` and remain strongly anisotropic;
+- cross-recording quality-stratum retrieval purity is `1.0` for every
+  checkpoint, exposing a detector-quality shortcut;
+- A4 mean robustness agreement is about `0.875`, with worst perturbation near
+  `0.570`;
+- reconstruction beats interpolation for every representation seed, showing a
+  valid pretext task but not downstream superiority.
+
+## One-Time Final Evaluation
+
+Before submission, the remote run inventory confirmed that no completed run had
+opened `in_session_test`. Queue item
+`20260715_yeast_ssl_final_in_session_v1`, Slurm job `23487080`, completed in
+`00:00:52` with return code 0. The evaluator accepted exactly the frozen
+handcrafted baseline plus the six A3/A4 checkpoints, trained probes only on
+`development_train`, and evaluated 877 final events in 20 disjoint capture
+blocks. The manifest records exactly `sealed_splits_used = ["in_session_test"]`.
+
+Final macro F1 was handcrafted `0.4334 +/- 0.0261`, A3
+`0.3293 +/- 0.0297`, and A4 `0.3529 +/- 0.0228`. A4 minus handcrafted was
+`-0.0805`, 95% `[-0.1040, -0.0484]`; A4 minus A3 was `+0.0235`,
+`[0.0060, 0.0403]`. A4 recall for the `shmoo` source proxy was only `0.148`,
+versus `0.374` for handcrafted features.
+
+The immutable source metrics use a historical Boolean key whose `false` value
+means that a positive interval was not established. Because the actual primary
+interval is entirely negative, the derived final report records the explicit
+classification `primary_interval_position = entirely_below_zero` without
+rewriting the source run.
+
+Metrics SHA256 is
+`0f0b993b79552729790c9b9be71dfc2d5d13811dd84015060cb52753fed2faae`;
+predictions SHA256 is
+`84221ba21687bddc4eda1cc2e5c68e723d785e143b27fe74e6ec5df00afaa8eb`.
+
+## Final Disposition
+
+The full result and pedagogical interpretation are in
+[`YEAST_SSL_REBUILT_STUDY_REPORT.md`](YEAST_SSL_REBUILT_STUDY_REPORT.md). Gate 5
+is a controlled negative: A4 learns intended physical factors and improves A3,
+but loses to the handcrafted baseline on the one-time restricted endpoint.
+The A0-A4 protocol is frozen, Gate 6 is not authorized, and no further use of
+the final split is permitted for selection.

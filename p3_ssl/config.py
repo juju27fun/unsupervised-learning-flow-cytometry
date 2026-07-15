@@ -59,6 +59,7 @@ def validate_ssl_config(config: dict[str, Any]) -> None:
 
 
 def validate_study_config(config: dict[str, Any]) -> None:
+    study = config["study"]
     data = config["data"]
     model = config["model"]
     masking = config["masking"]
@@ -81,6 +82,21 @@ def validate_study_config(config: dict[str, Any]) -> None:
     overlap = forbidden & selected
     if overlap:
         raise ValueError(f"Forbidden split selected for training/validation: {sorted(overlap)}")
+    representation_seeds = [int(seed) for seed in config["training"]["representation_seeds"]]
+    if len(representation_seeds) < 3 or len(representation_seeds) != len(
+        set(representation_seeds)
+    ):
+        raise ValueError("At least three unique representation seeds are required")
+    if int(config["training"]["seed"]) not in representation_seeds:
+        raise ValueError("training.seed must be included in representation_seeds")
+    if study.get("primary_endpoint_status") == "authorized_single_acquisition_in_session":
+        decision = study.get("scope_decision", {})
+        if not decision.get("independent_acquisition_waived"):
+            raise ValueError("Single-acquisition authorization must record the acquisition waiver")
+        if decision.get("acquisition_ood_claim_allowed"):
+            raise ValueError("Single-acquisition scope cannot allow an acquisition-OOD claim")
+        if decision.get("biological_label_claim_allowed"):
+            raise ValueError("Source-group proxies cannot authorize a biological-label claim")
     if float(masking["min_block_ms"]) <= 0 or float(masking["max_block_ms"]) < float(
         masking["min_block_ms"]
     ):

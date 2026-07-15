@@ -40,12 +40,20 @@ def _write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
         writer.writerows(rows)
 
 
-def _probe_row(payload: dict[str, Any], key: str, value: str, fraction: float) -> dict[str, Any]:
-    return next(
+def _representation_seed(payload: dict[str, Any], row: dict[str, Any]) -> int:
+    checkpoint = row.get("checkpoint")
+    metadata = payload.get("checkpoint_metadata", {}).get(checkpoint, {})
+    return int(metadata.get("seed", 0))
+
+
+def _matching_rows(
+    payload: dict[str, Any], key: str, value: str, fraction: float
+) -> list[dict[str, Any]]:
+    return [
         row
         for row in payload["results"]
         if row[key] == value and float(row["label_fraction"]) == fraction
-    )
+    ]
 
 
 def paired_bootstrap_comparisons(
@@ -59,28 +67,76 @@ def paired_bootstrap_comparisons(
     )
     output = []
     for left, right, left_payload, left_key, right_payload, right_key in comparisons:
-        left_row = _probe_row(left_payload, left_key, left, 0.1)
-        right_row = _probe_row(right_payload, right_key, right, 0.1)
-        left_values = np.asarray(
-            left_row["grouped_bootstrap"]["metrics"]["macro_f1"]["replicates"]
-        )
-        right_values = np.asarray(
-            right_row["grouped_bootstrap"]["metrics"]["macro_f1"]["replicates"]
-        )
-        if left_values.shape != right_values.shape:
-            raise ValueError("Paired bootstrap arrays have different shapes")
-        differences = left_values - right_values
-        interval = np.quantile(differences, [0.025, 0.975])
+        left_rows = _matching_rows(left_payload, left_key, left, 0.1)
+        right_rows = _matching_rows(right_payload, right_key, right, 0.1)
+        paired_differences = []
+        run_differences = []
+        for left_row in left_rows:
+            probe_seed = int(left_row.get("seed", 0))
+            representation_seed = _representation_seed(left_payload, left_row)
+            candidates = [
+                row
+                for row in right_rows
+                if int(row.get("seed", 0)) == probe_seed
+                and (
+                    right_key != "cell"
+                    or _representation_seed(right_payload, row) == representation_seed
+                )
+            ]
+            if not candidates and len(right_rows) == 1:
+                candidates = right_rows
+            if len(candidates) != 1:
+                raise ValueError(
+                    f"Expected one paired row for {left}/{right}, representation seed "
+                    f"{representation_seed}, probe seed {probe_seed}; got {len(candidates)}"
+                )
+            right_row = candidates[0]
+            left_values = np.asarray(
+                left_row["grouped_bootstrap"]["metrics"]["macro_f1"]["replicates"]
+            )
+            right_values = np.asarray(
+                right_row["grouped_bootstrap"]["metrics"]["macro_f1"]["replicates"]
+            )
+            if left_values.shape != right_values.shape:
+                raise ValueError("Paired bootstrap arrays have different shapes")
+            paired_differences.append(left_values - right_values)
+            run_differences.append(float(left_row["macro_f1"] - right_row["macro_f1"]) if "macro_f1" in left_row else float(np.mean(left_values - right_values)))
+        direct_mean = float(np.mean(run_differences))
+        repeats = max(len(values) for values in paired_differences)
+        rng = np.random.default_rng(20260715)
+        hierarchical = np.empty(repeats, dtype=np.float64)
+        for repeat in range(repeats):
+            sampled_runs = rng.integers(0, len(paired_differences), size=len(paired_differences))
+            hierarchical[repeat] = np.mean(
+                [
+                    paired_differences[index][
+                        rng.integers(0, len(paired_differences[index]))
+                    ]
+                    for index in sampled_runs
+                ]
+            )
+        interval = np.quantile(hierarchical, [0.025, 0.975])
         output.append(
             {
                 "comparison": f"{left} - {right}",
                 "left": left,
                 "right": right,
-                "mean_difference": float(differences.mean()),
+                "mean_difference": direct_mean,
                 "ci_95_low": float(interval[0]),
                 "ci_95_high": float(interval[1]),
-                "bootstrap_probability_gt_zero": float(np.mean(differences > 0.0)),
-                "n_repeats": int(differences.size),
+                "bootstrap_probability_gt_zero": float(np.mean(hierarchical > 0.0)),
+                "n_repeats": int(hierarchical.size),
+                "n_paired_runs": len(run_differences),
+                "paired_run_mean_difference": direct_mean,
+                "paired_run_std": (
+                    float(np.std(run_differences, ddof=1))
+                    if len(run_differences) > 1
+                    else 0.0
+                ),
+                "uncertainty_method": (
+                    "hierarchical paired bootstrap over representation/probe runs "
+                    "and capture-block bootstrap replicates"
+                ),
             }
         )
     return output
@@ -95,36 +151,44 @@ def _save(fig: plt.Figure, output_dir: Path, stem: str) -> list[str]:
     return [pdf.name, png.name]
 
 
+def _plot_aggregate_curve(
+    ax: plt.Axes,
+    rows: list[dict[str, Any]],
+    *,
+    name: str,
+) -> None:
+    fractions = sorted({float(row["label_fraction"]) for row in rows})
+    means = []
+    deviations = []
+    for fraction in fractions:
+        values = np.asarray(
+            [float(row["macro_f1"]) for row in rows if float(row["label_fraction"]) == fraction]
+        )
+        means.append(float(values.mean()))
+        deviations.append(float(values.std(ddof=1)) if values.size > 1 else 0.0)
+    ax.errorbar(
+        [100.0 * value for value in fractions],
+        means,
+        yerr=deviations,
+        marker="o",
+        capsize=2,
+        color=COLORS[name],
+        label=DISPLAY[name],
+    )
+
+
 def _label_efficiency_figure(a0: dict[str, Any], checkpoints: dict[str, Any], output_dir: Path) -> list[str]:
     fig, ax = plt.subplots(figsize=(8.2, 4.8), constrained_layout=True)
     for name in ("handcrafted", "moment", "random"):
-        rows = sorted(
-            [row for row in a0["results"] if row["method"] == name],
-            key=lambda row: float(row["label_fraction"]),
-        )
-        ax.plot(
-            [100.0 * float(row["label_fraction"]) for row in rows],
-            [row["macro_f1"] for row in rows],
-            marker="o",
-            color=COLORS[name],
-            label=DISPLAY[name],
-        )
+        rows = [row for row in a0["results"] if row["method"] == name]
+        _plot_aggregate_curve(ax, rows, name=name)
     for name in ("A1", "A2", "A3", "A4"):
-        rows = sorted(
-            [row for row in checkpoints["results"] if row["cell"] == name],
-            key=lambda row: float(row["label_fraction"]),
-        )
-        ax.plot(
-            [100.0 * float(row["label_fraction"]) for row in rows],
-            [row["macro_f1"] for row in rows],
-            marker="o",
-            color=COLORS[name],
-            label=DISPLAY[name],
-        )
+        rows = [row for row in checkpoints["results"] if row["cell"] == name]
+        _plot_aggregate_curve(ax, rows, name=name)
     ax.set_xlabel("Available proxy labels (%)")
     ax.set_ylabel("Development macro F1")
-    ax.set_ylim(0.0, 0.42)
-    ax.set_title("Development smoke: source-condition proxy label efficiency")
+    ax.set_ylim(0.0, 1.0)
+    ax.set_title("Development source-condition proxy label efficiency")
     ax.grid(alpha=0.2)
     ax.legend(ncol=2, fontsize=8)
     return _save(fig, output_dir, "development_label_efficiency")
@@ -140,7 +204,7 @@ def _paired_figure(rows: list[dict[str, Any]], output_dir: Path) -> list[str]:
     ax.axvline(0.0, color="black", linewidth=0.8)
     ax.set_yticks(positions, [row["comparison"] for row in rows])
     ax.set_xlabel("Paired macro-F1 difference (capture-block bootstrap 95% interval)")
-    ax.set_title("Development smoke: paired 10%-label comparisons")
+    ax.set_title("Development paired 10%-label comparisons")
     ax.invert_yaxis()
     ax.grid(axis="x", alpha=0.2)
     return _save(fig, output_dir, "development_paired_differences")
@@ -152,16 +216,19 @@ def _retrieval_figure(a0: dict[str, Any], checkpoints: dict[str, Any], output_di
         metric = a0["method_metadata"][name]["development_retrieval"]
         points.append((name, metric))
     for key, value in checkpoints["checkpoint_metadata"].items():
-        points.append((value["cell"], value["development_retrieval"]))
+        points.append((value["cell"], value["development_retrieval"], value.get("seed")))
     fig, ax = plt.subplots(figsize=(7.0, 4.7), constrained_layout=True)
-    for name, metric in points:
+    for point in points:
+        name, metric = point[:2]
+        seed = point[2] if len(point) > 2 else None
         ax.scatter(
             metric["top1_quality_purity"],
             metric["top1_label_purity"],
             color=COLORS[name],
             s=48,
         )
-        ax.annotate(DISPLAY[name], (metric["top1_quality_purity"], metric["top1_label_purity"]), xytext=(4, 4), textcoords="offset points", fontsize=8)
+        label = DISPLAY[name] if seed is None else f"{name} s{seed}"
+        ax.annotate(label, (metric["top1_quality_purity"], metric["top1_label_purity"]), xytext=(4, 4), textcoords="offset points", fontsize=7)
     ax.axhline(0.25, color="black", linestyle="--", linewidth=0.8, label="four-class chance")
     ax.set_xlabel("Top-1 quality-stratum purity")
     ax.set_ylabel("Top-1 source-condition purity")
@@ -172,9 +239,15 @@ def _retrieval_figure(a0: dict[str, Any], checkpoints: dict[str, Any], output_di
 
 
 def _robustness_figure(checkpoints: dict[str, Any], output_dir: Path) -> list[str]:
-    cells = ("a1", "a2", "a3", "a4")
+    cells = sorted(
+        checkpoints["checkpoint_metadata"],
+        key=lambda key: (
+            checkpoints["checkpoint_metadata"][key]["cell"],
+            int(checkpoints["checkpoint_metadata"][key].get("seed", 0)),
+        ),
+    )
     perturbations = list(
-        checkpoints["checkpoint_metadata"]["a1"]["development_robustness"]["perturbations"]
+        checkpoints["checkpoint_metadata"][cells[0]]["development_robustness"]["perturbations"]
     )
     agreement = np.asarray(
         [
@@ -188,7 +261,13 @@ def _robustness_figure(checkpoints: dict[str, Any], output_dir: Path) -> list[st
     fig, ax = plt.subplots(figsize=(9.0, 3.8), constrained_layout=True)
     image = ax.imshow(agreement, aspect="auto", vmin=0.0, vmax=1.0, cmap="viridis")
     ax.set_xticks(np.arange(len(perturbations)), perturbations, rotation=35, ha="right")
-    ax.set_yticks(np.arange(len(cells)), [cell.upper() for cell in cells])
+    ax.set_yticks(
+        np.arange(len(cells)),
+        [
+            f"{checkpoints['checkpoint_metadata'][key]['cell']} s{checkpoints['checkpoint_metadata'][key].get('seed', '?')}"
+            for key in cells
+        ],
+    )
     ax.set_title("Development prediction agreement under bounded perturbations")
     for row in range(agreement.shape[0]):
         for column in range(agreement.shape[1]):
@@ -198,9 +277,15 @@ def _robustness_figure(checkpoints: dict[str, Any], output_dir: Path) -> list[st
 
 
 def _physical_figure(checkpoints: dict[str, Any], output_dir: Path) -> list[str]:
-    cells = ("a1", "a2", "a3", "a4")
+    cells = sorted(
+        checkpoints["checkpoint_metadata"],
+        key=lambda key: (
+            checkpoints["checkpoint_metadata"][key]["cell"],
+            int(checkpoints["checkpoint_metadata"][key].get("seed", 0)),
+        ),
+    )
     factors = list(
-        checkpoints["checkpoint_metadata"]["a1"]["development_physical_fidelity"]["retained_factor_linear_probes"]
+        checkpoints["checkpoint_metadata"][cells[0]]["development_physical_fidelity"]["retained_factor_linear_probes"]
     )
     values = np.asarray(
         [
@@ -214,7 +299,13 @@ def _physical_figure(checkpoints: dict[str, Any], output_dir: Path) -> list[str]
     fig, ax = plt.subplots(figsize=(9.2, 3.8), constrained_layout=True)
     image = ax.imshow(np.clip(values, -1.0, 1.0), aspect="auto", vmin=-1.0, vmax=1.0, cmap="RdBu")
     ax.set_xticks(np.arange(len(factors)), [factor.replace("_", " ") for factor in factors], rotation=30, ha="right")
-    ax.set_yticks(np.arange(len(cells)), [cell.upper() for cell in cells])
+    ax.set_yticks(
+        np.arange(len(cells)),
+        [
+            f"{checkpoints['checkpoint_metadata'][key]['cell']} s{checkpoints['checkpoint_metadata'][key].get('seed', '?')}"
+            for key in cells
+        ],
+    )
     ax.set_title("Retained-factor MSE reduction versus constant prior")
     for row in range(values.shape[0]):
         for column in range(values.shape[1]):
@@ -226,8 +317,8 @@ def _physical_figure(checkpoints: dict[str, Any], output_dir: Path) -> list[str]
 def build_development_report(a0_path: Path, checkpoint_path: Path, output_dir: Path) -> dict[str, Any]:
     a0 = _read_json(a0_path)
     checkpoints = _read_json(checkpoint_path)
-    output_dir.mkdir(parents=True, exist_ok=False)
     comparisons = paired_bootstrap_comparisons(a0, checkpoints)
+    output_dir.mkdir(parents=True, exist_ok=False)
     _write_csv(output_dir / "paired_bootstrap_differences.csv", comparisons)
 
     probe_rows = []
@@ -235,6 +326,7 @@ def build_development_report(a0_path: Path, checkpoint_path: Path, output_dir: P
         probe_rows.append(
             {
                 "method": row["method"],
+                "representation_seed": "",
                 "label_fraction": row["label_fraction"],
                 "seed": row["seed"],
                 "macro_f1": row["macro_f1"],
@@ -247,6 +339,7 @@ def build_development_report(a0_path: Path, checkpoint_path: Path, output_dir: P
         probe_rows.append(
             {
                 "method": row["cell"],
+                "representation_seed": _representation_seed(checkpoints, row),
                 "label_fraction": row["label_fraction"],
                 "seed": row["seed"],
                 "macro_f1": row["macro_f1"],
@@ -265,7 +358,7 @@ def build_development_report(a0_path: Path, checkpoint_path: Path, output_dir: P
     summary = {
         "schema_version": 1,
         "status": "complete",
-        "scope": "development smoke on source-condition proxy labels; not a morphology or OOD result",
+        "scope": "development source-condition proxy labels; single acquisition, not a morphology or OOD result",
         "source_a0": str(a0_path),
         "source_checkpoints": str(checkpoint_path),
         "paired_comparisons": comparisons,

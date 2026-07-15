@@ -26,6 +26,9 @@ def test_rebuild_config_is_coherent() -> None:
         "synthetic_weight_start": 0.30,
         "synthetic_weight_end": 0.10,
     }
+    assert config["study"]["real_dataset"] == "yeast-events-representation@v3"
+    assert config["training"]["representation_seeds"] == [42, 43, 44]
+    assert config["study"]["scope_decision"]["acquisition_ood_claim_allowed"] is False
 
 
 def test_mask_batch_has_256_tokens_and_trivial_controls() -> None:

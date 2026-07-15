@@ -31,7 +31,7 @@ def main() -> None:
         "schema_version": 1,
         "project": "unsupervised-learning-flow-cytometry",
         "run_id": args.run_id,
-        "dataset": "yeast-events-representation@v2 + yeast-passage-simulations@v1",
+        "dataset": "yeast-events-representation@v3 + yeast-passage-simulations@v1",
         "repositories": {
             "unsupervised-learning-flow-cytometry": revision(repo_root),
             "particles2SNR-pipeline": revision(repo_root.parent / "particles2SNR-pipeline"),

@@ -391,6 +391,8 @@ def train_study_cell(
         checkpoint = torch.load(init_checkpoint, map_location="cpu", weights_only=False)
         if checkpoint.get("cell") != "A3":
             raise ValueError("A4 initialization checkpoint must come from A3")
+        if int(checkpoint.get("seed", -1)) != seed:
+            raise ValueError("A4 and its A3 initialization checkpoint must use the same seed")
         model.load_state_dict(checkpoint["model_state"])
     batch_size = int(profile_config["batch_size"])
     max_real = profile_config.get("max_real_events")

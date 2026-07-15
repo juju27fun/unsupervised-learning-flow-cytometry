@@ -1,5 +1,14 @@
 # Détection Des Événements Yeast Et Génération Du Dataset P3
 
+> **État au 2026-07-15.** Les paramètres « par défaut » expliqués ci-dessous
+> décrivent le détecteur historique, qui a échoué à la revue v5. La configuration
+> `review-calibrated-v1` (`SNR >= 12`, gap `0.128 ms`, largeur maximale `2.0 ms`,
+> cinq événements au maximum) a passé la revue indépendante v7 sur l'acquisition
+> disponible. Le dataset `yeast-events-representation@v3` en est la sortie de
+> référence, mais la fiabilité reviewer et la généralisation sur une seconde
+> acquisition restent à établir. Voir le
+> [journal d'exécution](YEAST_SSL_EXECUTION_LOG.md#immediate-next-check).
+
 Cette note décrit le pipeline implémenté dans
 [`scripts/build_yeast_event_dataset.py`](../scripts/build_yeast_event_dataset.py).
 Son rôle est de transformer des signaux `.npy` yeast bruts en événements centrés,

@@ -1,9 +1,17 @@
 study:
   protocol: yeast-ssl-rebuild-v1
-  real_dataset: yeast-events-representation@v2
+  real_dataset: yeast-events-representation@v3
   simulation_dataset: yeast-passage-simulations@v1
   input_contract: yeast-event-8192to4096-bandpass-global-v1
-  primary_endpoint_status: blocked_pending_independent_acquisition
+  primary_endpoint_status: authorized_single_acquisition_in_session
+  endpoint_scope: source_group_proxy_diagnostic
+  scope_decision:
+    accepted_on: 2026-07-15
+    accepted_by: project_owner
+    independent_acquisition_waived: true
+    reviewer_reliability_waived: true
+    acquisition_ood_claim_allowed: false
+    biological_label_claim_allowed: false
 
 data:
   input_length: 4096
@@ -44,6 +52,7 @@ loss:
 
 training:
   seed: 42
+  representation_seeds: [42, 43, 44]
   optimizer: adamw
   learning_rate: 0.0003
   weight_decay: 0.01

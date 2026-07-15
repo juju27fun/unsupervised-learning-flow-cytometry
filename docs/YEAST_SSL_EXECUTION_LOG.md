@@ -1,6 +1,6 @@
 # Yeast SSL Rebuild: Execution Log
 
-**Updated:** 2026-07-14
+**Updated:** 2026-07-15
 
 This is a concise evidence log for
 [`YEAST_SSL_CRITIQUE_AND_REBUILD_PLAN.md`](YEAST_SSL_CRITIQUE_AND_REBUILD_PLAN.md).
@@ -12,7 +12,7 @@ manuscript.
 | Gate | State | Evidence | Decision |
 |---|---|---|---|
 | 0: provenance and ownership | Pass for required real and synthetic inputs | Registered IDs listed below; full checksum validation passed; generation code is in `particles2SNR-pipeline` | Source/model implementation may proceed |
-| 1: event and split validity | Fail | Manual candidate and full-trace review are pending; only one independent acquisition is documented | No final biological or acquisition-OOD training claim |
+| 1: event and split validity | Detector sub-gate pass; overall blocked | The independent v7 review gives candidate precision `48/48` and full-trace `TP=85`, `FP=1`, `FN=1`; reviewer reliability and a second acquisition are absent | Use v7 for single-acquisition development only; keep final biological and acquisition-OOD claims blocked |
 | 2: input and information contract | Pass | P3 loaders, config, masking, loss, and simulator policy enforce the frozen contract | Smoke training authorized |
 | 3: baseline readiness | Runtime complete, scientific matrix pending | All A0 methods completed on pfcalcul with the corrected split; the grouped multi-seed matrix is absent | Block A1-A4 promotion |
 | 4: pretext validity | CUDA smoke evidence only | A1-A4 completed on pfcalcul and reconstruction beats interpolation/nearest controls; one epoch and one seed are insufficient | Block full scientific claim |
@@ -25,8 +25,12 @@ manuscript.
 |---|---|---|
 | `yeast-hf-10-5-20260610@v1` | Immutable raw signals, microscopy images, and acquisition notes | One documented date/configuration |
 | `yeast-source-index@v2` | Duplicate-family-safe, source-group-stratified 32-record capture-block metadata | Splits are in-session development splits only |
-| `yeast-event-candidates@v5` | Same 11,099 candidates as v4, with corrected retained/rejected/missed review fields | Manual annotation pending; registered templates are immutable |
+| `yeast-event-candidates@v5` | Same 11,099 candidates as v4, with corrected retained/rejected/missed review fields | Completed review failed Gate 1 and is now calibration evidence only |
+| `yeast-event-candidates@v6` | First fresh queue for the review-calibrated detector | Superseded before annotation because 24 retained windows gave inadequate Wilson-interval power |
+| `yeast-event-candidates@v7` | Frozen revised detector; 88 candidate windows and 65 full traces, excluding every v5/v6 review record | Event review passed; still from one acquisition and reliability review pending |
+| `yeast-event-review-annotations@v1` | Immutable adjudicated v7 annotations, annotation audit, and Gate analysis | One reviewer; reliability subset remains pending |
 | `yeast-events-representation@v2` | Frozen `10617 x 4096` real event tensor built from the candidate-identical v4 audit | Folder conditions are acquisition-level proxies |
+| `yeast-events-representation@v3` | Reference `8721 x 4096` tensor built from the validated v7 detector | Single-acquisition development only; do not treat source conditions as labels |
 | `yeast-passage-simulations@v1` | `14000 x 4096` paired-view identifiable passage simulations | Generic passage factors are not yeast morphology labels |
 
 ## Audit Findings
@@ -60,6 +64,16 @@ manuscript.
   crop crossed a source boundary. This incorrectly mixed physical quality with
   input geometry. Candidate quality is now crop-independent: v4 contains 9,491
   strict, 1,126 medium, and 482 width-rejected candidates.
+- The completed v5 review contains `TP=95`, `FP=44`, and `FN=7` on full traces.
+  Every one of the 24 reviewed width-rejected windows contains an event, so the
+  old `1.6 ms` width rule was not a valid non-event criterion. In the medium
+  tier, event and non-event median SNR proxies are nearly identical (`3.83`
+  versus `3.92`); SNR alone does not identify all false positives.
+- A count-only development sweep selected acceptance SNR `12`, boundary SNR
+  `1.5`, cluster gap `0.128 ms`, maximum width `2.0 ms`, and at most five
+  events. Its proxy precision/recall are both `0.931`, but this is not a
+  localization metric and uses the same v5 traces. The preset is therefore
+  frozen as `review-calibrated-v1`, not promoted as a validated detector.
 
 ## Frozen Input Contract
 
@@ -92,18 +106,29 @@ absolute physical amplitude are explicitly excluded targets.
 
 ## Immediate Next Check
 
-Complete the 73 candidate-window and 73 full-trace v5 annotations, run the
-predeclared review analyzer, and register the completed annotations separately.
-Even a passing detector audit will not unlock the primary OOD endpoint: a
-second independent acquisition is required. Full training remains blocked
-until both requirements are satisfied.
+The independent v7 event review is complete. The authoritative adjudicated
+analysis is
+`artifacts/particles2SNR-pipeline/audits/yeast-event-review-v7-analysis-20260715-v2/`:
 
-The rendered review material and editable queue copies are at
-`artifacts/particles2SNR-pipeline/audits/yeast-event-review-v5-work/` from the
-workspace root. Annotate the two CSV copies there, then pass that directory
-through `--review-dir` to `scripts/analysis/analyze_yeast_event_review.py`.
-The analyzer archives the completed CSVs with its metrics. The exact pass
-thresholds are frozen in Section 5.3 of the rebuild plan.
+- retained candidate precision is `48/48 = 1.000`, Wilson 95% CI
+  `[0.926, 1.000]`;
+- full-trace precision and recall are both `85/86 = 0.988`, Wilson 95% CI
+  `[0.937, 0.998]`;
+- per-group point precision and recall pass every frozen threshold;
+- `6/40 = 0.150` reviewed rejected candidates contain an event, below the
+  predeclared `0.25` maximum;
+- one retained candidate has an acquisition artifact and one appears to merge
+  two events, so the result is not evidence of a perfect detector;
+- the only full-trace false negative is a true low-quality rejected candidate;
+  its explicit reviewer note was adjudicated from `missed` to `true rejected`,
+  with total `FN=1` unchanged.
+
+Compared with v5 calibration, the revised detector removes the main low-SNR
+false-positive mode without the catastrophic width rejection pattern. The
+result validates extraction on this acquisition, not acquisition transfer.
+The next human step is the frozen 20% v7 reliability review. The next data step
+is a second independently acquired yeast session. No additional threshold
+tuning is allowed on v7.
 
 ### Acquisition blocker audit and intake readiness
 
@@ -123,7 +148,7 @@ is documented in
 [`YEAST_ACQUISITION_INTAKE.md`](https://github.com/juju27fun/particles2SNR-pipeline/blob/reorg/workspace-20260710/YEAST_ACQUISITION_INTAKE.md).
 This closes the software-readiness risk, not Gate 1 itself.
 
-The editable v5 queues can now be reviewed at `http://127.0.0.1:8765` through
+The editable v7 queues can now be reviewed at `http://127.0.0.1:8765` through
 `particles2SNR-pipeline/scripts/reports/serve_yeast_event_review.py`. The local
 reviewer presents the raw trace and 7-80 kHz spectrogram, separates retained
 candidate decisions from full-trace counts, validates count identities, saves
@@ -132,12 +157,13 @@ were checked against the real v5 payload without submitting an annotation.
 The protocol now also requires a stratified 20% independent double review; this
 reliability evidence is still pending.
 
-The blank second-review artifact is preselected at
-`artifacts/particles2SNR-pipeline/audits/yeast-event-review-v5-reliability-work/`.
-It contains 15 candidate windows and 15 full traces (`20.55%` of each queue),
-covers all 13 available strata in both tasks, validates as a manifested run,
-and records data-owner revision `4f5fa13`. No reliability annotation has been
-entered yet.
+The old v5 reliability subset remains provenance for the calibration labels,
+not final detector validation. The frozen v7 reliability artifact is
+`artifacts/particles2SNR-pipeline/audits/yeast-event-review-v7-reliability-work/`;
+it contains 18 candidate windows and 13 full traces (at least 20% of each queue)
+and covers every available review stratum. It must be completed by an
+independent reviewer, or as a blinded delayed repeat explicitly reported as
+intra-rater evidence.
 
 ## Development Smoke Evidence
 

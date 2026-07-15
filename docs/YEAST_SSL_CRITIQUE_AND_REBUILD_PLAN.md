@@ -421,6 +421,13 @@ acceptable event recall blocks representation claims.
 
 Before annotation, the Gate 1 detector thresholds are frozen as follows:
 
+For candidate-window annotation, `review_event_present=yes` means that the
+detector's proposed interval corresponds to a real event. An event visible
+elsewhere in the surrounding crop but outside the proposed interval is `no` for
+that candidate; it is accounted for as a missed event in the full-trace review.
+This definition is required for candidate precision and must not be replaced by
+"any event visible in the crop".
+
 - retained-candidate precision at least `0.90`, with Wilson 95% lower bound at
   least `0.80`;
 - retained-event recall on complete traces at least `0.85`, with Wilson 95%

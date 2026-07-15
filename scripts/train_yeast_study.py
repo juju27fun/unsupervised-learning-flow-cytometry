@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import copy
 import hashlib
 import json
 import subprocess
@@ -32,12 +33,25 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--profile", choices=("smoke", "full"), default="smoke")
     parser.add_argument("--device", choices=("cpu", "cuda"), default="cpu")
     parser.add_argument("--init-checkpoint", type=Path)
+    parser.add_argument(
+        "--seed",
+        type=int,
+        help="Representation-training seed; must be predeclared in the study config.",
+    )
     return parser
 
 
 def main() -> None:
     args = build_parser().parse_args()
     config = load_config(args.config)
+    if args.seed is not None:
+        allowed_seeds = {int(seed) for seed in config["training"]["representation_seeds"]}
+        if args.seed not in allowed_seeds:
+            raise ValueError(
+                f"Seed {args.seed} is not predeclared; expected one of {sorted(allowed_seeds)}"
+            )
+        config = copy.deepcopy(config)
+        config["training"]["seed"] = args.seed
     result = train_study_cell(
         cell=args.cell,
         config=config,
@@ -68,6 +82,7 @@ def main() -> None:
         "status": "complete",
         "cell": args.cell,
         "profile": args.profile,
+        "seed": int(config["training"]["seed"]),
         "config_sha256": config_hash,
         "sealed_splits_used": result["sealed_splits_used"],
     }

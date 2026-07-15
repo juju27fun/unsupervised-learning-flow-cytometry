@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from scripts.evaluate_yeast_final_in_session import _paired_comparison, _prior_final_open
+from p3_ssl.final_evaluation import paired_comparison, prior_final_open
 
 
 def _metric(
@@ -35,8 +35,8 @@ def test_final_paired_comparison_preserves_probe_and_representation_pairing() ->
             rows.append(_metric("A3", probe_seed, 0.4, representation_seed))
     for probe_seed in (42, 43):
         rows.append(_metric("handcrafted", probe_seed, 0.45))
-    primary = _paired_comparison(rows, "A4", "handcrafted")
-    ablation = _paired_comparison(rows, "A4", "A3")
+    primary = paired_comparison(rows, "A4", "handcrafted")
+    ablation = paired_comparison(rows, "A4", "A3")
     assert primary["n_paired_runs"] == 4
     assert primary["mean_difference"] == pytest.approx(0.05)
     assert ablation["mean_difference"] == pytest.approx(0.1)
@@ -49,7 +49,7 @@ def test_prior_final_open_detects_only_completed_in_session_use(tmp_path: Path) 
         json.dumps({"status": "failed", "sealed_splits_used": ["in_session_test"]}),
         encoding="utf-8",
     )
-    assert _prior_final_open(tmp_path) is None
+    assert prior_final_open(tmp_path) is None
     complete = tmp_path / "complete"
     complete.mkdir()
     manifest = complete / "run.json"
@@ -57,4 +57,4 @@ def test_prior_final_open_detects_only_completed_in_session_use(tmp_path: Path) 
         json.dumps({"status": "complete", "sealed_splits_used": ["in_session_test"]}),
         encoding="utf-8",
     )
-    assert _prior_final_open(tmp_path) == manifest
+    assert prior_final_open(tmp_path) == manifest

@@ -52,7 +52,7 @@ frozen final-three-versus-first-three adaptation-loss trend in all four cells;
 this is shared seed sensitivity rather than an R3-specific failure, but the
 preregistered R3 gate still requires 3/3 convergence.
 
-![Week 2 R0-R3 ablation](../../artifacts/unsupervised-learning-flow-cytometry/reports/yeast-followup-week2-full-v1-report-v2/week2_r0_r3_comparison.png)
+![Week 2 R0-R3 ablation](../../artifacts/unsupervised-learning-flow-cytometry/reports/yeast-followup-week2-full-v1-report-v3/week2_r0_r3_comparison.png)
 
 ## 3. Frozen R3 Gate
 
@@ -127,17 +127,17 @@ stop experimental work and proceed to the final study documentation with
 ## 7. Evidence
 
 - Corrected decision report:
-  [`WEEK2_DECISION.md`](../../artifacts/unsupervised-learning-flow-cytometry/reports/yeast-followup-week2-full-v1-report-v2/WEEK2_DECISION.md)
+  [`WEEK2_DECISION.md`](../../artifacts/unsupervised-learning-flow-cytometry/reports/yeast-followup-week2-full-v1-report-v3/WEEK2_DECISION.md)
 - Complete seed table:
-  [`week2_seed_summary.csv`](../../artifacts/unsupervised-learning-flow-cytometry/reports/yeast-followup-week2-full-v1-report-v2/week2_seed_summary.csv)
+  [`week2_seed_summary.csv`](../../artifacts/unsupervised-learning-flow-cytometry/reports/yeast-followup-week2-full-v1-report-v3/week2_seed_summary.csv)
 - Gate and paired intervals:
-  [`week2_decision.json`](../../artifacts/unsupervised-learning-flow-cytometry/reports/yeast-followup-week2-full-v1-report-v2/week2_decision.json)
+  [`week2_decision.json`](../../artifacts/unsupervised-learning-flow-cytometry/reports/yeast-followup-week2-full-v1-report-v3/week2_decision.json)
 - Full evaluation metrics:
   [`metrics.json`](../../artifacts/unsupervised-learning-flow-cytometry/runs/yeast-followup-week2-full-v1-evaluation/metrics.json)
 - Frozen executable configuration:
   [`yeast_ssl_followup_week2_v1.yaml`](../configs/yeast_ssl_followup_week2_v1.yaml)
 
-The provisional v1 report artifact is retained for provenance. The v2 report
-fixes display-only `n/a` gate fields, limits positive candidates to the frozen
-primary-metric list, and adds subgroup/shortcut tables; the scientific decision
-is unchanged.
+The provisional v1 and v2 report artifacts are retained for provenance. The v3
+report fixes display-only `n/a` gate fields, limits positive candidates to the
+frozen primary-metric list, and adds subgroup, shortcut, per-seed loss-component,
+runtime, and memory tables; the scientific decision is unchanged.

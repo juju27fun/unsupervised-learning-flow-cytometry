@@ -134,6 +134,17 @@ def summarize_week2(payload: dict[str, Any], config: dict[str, Any]) -> dict[str
                     float(np.mean(observed)) if observed else None
                 )
             retrieval = metadata["cross_recording_retrieval"]
+            synthetic_final = next(
+                row
+                for row in reversed(metadata["training_history"])
+                if row["phase"] == "synthetic_pretraining"
+            )
+            real_final = next(
+                row
+                for row in reversed(metadata["training_history"])
+                if row["phase"] == "real_adaptation"
+            )
+            convergence_phases = metadata["training_convergence"]["phases"]
             rows.append(
                 {
                     "cell": cell,
@@ -173,7 +184,46 @@ def summarize_week2(payload: dict[str, Any], config: dict[str, Any]) -> dict[str
                         retrieval["topk_acquisition_purity"]
                     ),
                     "runtime_seconds": float(metadata["training_runtime"]["wall_seconds"]),
+                    "peak_cuda_memory_bytes": int(
+                        metadata["training_runtime"]["peak_cuda_memory_bytes"]
+                    ),
                     "optimizer_steps": int(metadata["training_runtime"]["optimizer_steps"]),
+                    "synthetic_final_epoch_loss": float(synthetic_final["epoch_loss"]),
+                    "synthetic_final_time_reconstruction": float(
+                        synthetic_final["time_reconstruction"]
+                    ),
+                    "synthetic_final_spectral_reconstruction": (
+                        float(synthetic_final["spectral_reconstruction"])
+                        if "spectral_reconstruction" in synthetic_final
+                        else None
+                    ),
+                    "synthetic_final_vicreg": (
+                        float(synthetic_final["vicreg"])
+                        if "vicreg" in synthetic_final
+                        else None
+                    ),
+                    "synthetic_loss_trend_delta": float(
+                        convergence_phases["synthetic_pretraining"]["final_three_mean"]
+                        - convergence_phases["synthetic_pretraining"]["first_three_mean"]
+                    ),
+                    "real_final_epoch_loss": float(real_final["epoch_loss"]),
+                    "real_final_time_reconstruction": float(
+                        real_final["real_time_reconstruction"]
+                    ),
+                    "real_final_spectral_reconstruction": (
+                        float(real_final["real_spectral_reconstruction"])
+                        if "real_spectral_reconstruction" in real_final
+                        else None
+                    ),
+                    "real_final_vicreg": (
+                        float(real_final["real_vicreg"])
+                        if "real_vicreg" in real_final
+                        else None
+                    ),
+                    "real_loss_trend_delta": float(
+                        convergence_phases["real_adaptation"]["final_three_mean"]
+                        - convergence_phases["real_adaptation"]["first_three_mean"]
+                    ),
                     **class_recalls,
                 }
             )
@@ -373,6 +423,8 @@ def write_decision_markdown(path: Path, summary: dict[str, Any]) -> None:
                 float(np.median([row["continuous_retention_mean"] for row in rows])),
                 float(np.median([row["handcrafted_fusion_delta_mean"] for row in rows])),
                 float(np.median([row["runtime_seconds"] for row in rows])) / 60.0,
+                float(np.median([row["peak_cuda_memory_bytes"] for row in rows]))
+                / (1024.0**3),
             )
         )
     r3_failed_seeds = [
@@ -404,12 +456,12 @@ def write_decision_markdown(path: Path, summary: dict[str, Any]) -> None:
         "",
         "## Cell summary",
         "",
-        "| Cell | Converged seeds | Median effective rank | Median macro F1 at 10% | Median retained-factor gain | Median fusion delta | Median runtime (min) |",
-        "|---|---:|---:|---:|---:|---:|---:|",
+        "| Cell | Converged seeds | Median effective rank | Median macro F1 at 10% | Median retained-factor gain | Median fusion delta | Median runtime (min) | Peak CUDA (GiB) |",
+        "|---|---:|---:|---:|---:|---:|---:|---:|",
     ]
     lines.extend(
-        f"| {cell} | {converged}/3 | {rank:.3f} | {f1:.3f} | {retention:.3f} | {fusion:+.3f} | {runtime:.2f} |"
-        for cell, converged, rank, f1, retention, fusion, runtime in cell_rows
+        f"| {cell} | {converged}/3 | {rank:.3f} | {f1:.3f} | {retention:.3f} | {fusion:+.3f} | {runtime:.2f} | {memory:.3f} |"
+        for cell, converged, rank, f1, retention, fusion, runtime, memory in cell_rows
     )
     lines.extend(
         [

@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from p3_ssl.config import load_config
 from p3_ssl.followup_reporting import plot_week2, summarize_week2, write_decision_markdown
 
@@ -20,8 +22,36 @@ def _payload() -> dict:
             checkpoints[name] = {
                 "cell": cell,
                 "seed": representation_seed,
-                "training_convergence": {"converged": True},
-                "training_runtime": {"wall_seconds": 10.0, "optimizer_steps": 20},
+                "training_convergence": {
+                    "converged": True,
+                    "phases": {
+                        "synthetic_pretraining": {
+                            "first_three_mean": 1.2,
+                            "final_three_mean": 1.0,
+                        },
+                        "real_adaptation": {
+                            "first_three_mean": 1.1,
+                            "final_three_mean": 0.9,
+                        },
+                    },
+                },
+                "training_runtime": {
+                    "wall_seconds": 10.0,
+                    "optimizer_steps": 20,
+                    "peak_cuda_memory_bytes": 1024,
+                },
+                "training_history": [
+                    {
+                        "phase": "synthetic_pretraining",
+                        "epoch_loss": 1.0,
+                        "time_reconstruction": 0.8,
+                    },
+                    {
+                        "phase": "real_adaptation",
+                        "epoch_loss": 0.9,
+                        "real_time_reconstruction": 0.7,
+                    },
+                ],
                 "real_validation_embedding_health": {
                     "effective_rank": ranks[cell],
                     "mean_dimension_std": 0.2,
@@ -83,6 +113,8 @@ def test_week2_gate_passes_only_complete_positive_matrix() -> None:
     ]
     assert summary["gate"]["r3_promoted"] is True
     assert summary["week3_quality_adaptation_authorized"] is True
+    assert summary["rows"][0]["synthetic_final_epoch_loss"] == 1.0
+    assert summary["rows"][0]["real_loss_trend_delta"] == pytest.approx(-0.2)
 
 
 def test_week2_gate_rejects_rank_failure() -> None:

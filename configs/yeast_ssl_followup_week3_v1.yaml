@@ -1,6 +1,6 @@
 study:
   protocol: yeast-ssl-followup-week3-simulator-support-v1-20260716
-  status: preregistered_before_corrected_validation
+  status: preregistered_with_prevalidation_latent_pairing_correction
   real_dataset: yeast-events-followup@v2
   baseline_simulation_dataset: yeast-passage-simulations@v1
   corrected_simulation_dataset: yeast-passage-simulations@v2
@@ -31,7 +31,7 @@ correction:
     quantile_knots: 101
     candidate_tukey_alpha: [0.25, 0.50, 1.00]
     selection_metric: minimum_train_post_match_smd_max_then_maximum_retained_fraction
-    selected_tukey_alpha: 0.50
+    selected_tukey_alpha: 0.25
     pilot_seed: 20260716
     pilot_examples_per_domain: 1000
   forbidden:

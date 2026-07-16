@@ -22,10 +22,20 @@ Train-only distributions show median duration `0.362 ms` in reality versus
 `1.278 ms` in v1, and median spectral peak count `13` versus `1`.
 
 A bounded train-only pilot compared Tukey envelope alpha values 0.25, 0.50,
-and 1.00 while leaving every other generator family unchanged. Alpha 0.50 had
-the smallest train matched SMD maximum (`0.354`) with retained fraction
-`0.321`; alpha 0.25 reached `0.381`/`0.321` and alpha 1.00
-`0.413`/`0.330`. Therefore alpha 0.50 is frozen before corrected validation.
+and 1.00 while leaving every other generator family unchanged.
+
+### Pre-validation corrective addendum
+
+The first exploratory pilot sampled target duration with the view RNG, so two
+views of one latent could receive different duration factors. The production
+implementation correctly samples duration once per latent. Its executable
+preflight rejected the initial alpha 0.50 declaration before creating any
+corrected dataset or accessing corrected validation outcomes.
+
+With latent-level duration fixed, alpha 0.25 has the smallest train matched SMD
+maximum (`0.365`) and retains `0.338`; alpha 0.50 reaches `0.411`/`0.340` and
+alpha 1.00 `0.439`/`0.344`. Alpha 0.25 is therefore frozen. This addendum
+corrects a paired-view implementation defect, not an outcome-dependent choice.
 
 ## Correction
 
@@ -33,7 +43,7 @@ the smallest train matched SMD maximum (`0.354`) with retained fraction
    `followup_train` signals.
 2. Store 101 quantile knots over the robust 5th-95th percentile interval.
 3. Sample the target duration deterministically from those knots.
-4. Generate a finite-support Tukey wave packet with alpha 0.50 and analytically
+4. Generate a finite-support Tukey wave packet with alpha 0.25 and analytically
    compensate its 25%-height support.
 
 Carrier, component, position, SNR, noise, drift, sensor-response, RMS,

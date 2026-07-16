@@ -113,7 +113,8 @@ def main() -> None:
     frozen_alpha = float(calibration_config["selected_tukey_alpha"])
     if selected["tukey_alpha"] != frozen_alpha:
         raise RuntimeError(
-            f"Train-only candidate selection {selected['tukey_alpha']} differs from frozen {frozen_alpha}"
+            f"Train-only candidate selection {selected['tukey_alpha']} differs from frozen "
+            f"{frozen_alpha}: {json.dumps(candidates, sort_keys=True)}"
         )
     payload = {
         "schema_version": 1,

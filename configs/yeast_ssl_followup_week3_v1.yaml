@@ -1,0 +1,93 @@
+study:
+  protocol: yeast-ssl-followup-week3-simulator-support-v1-20260716
+  status: preregistered_before_corrected_validation
+  real_dataset: yeast-events-followup@v2
+  baseline_simulation_dataset: yeast-passage-simulations@v1
+  corrected_simulation_dataset: yeast-passage-simulations@v2
+  sealed_splits: [followup_test, in_session_test, test]
+  allowed_real_fit_split: followup_train
+  allowed_real_evaluation_split: followup_validation
+
+correction:
+  family: finite_support_transit_envelope
+  causal_change: replace the diffuse Gaussian envelope with one finite-support Tukey wave packet
+  unchanged_families:
+    - carrier_frequency
+    - component_count
+    - component_separation
+    - relative_component_amplitude
+    - frequency_separation
+    - event_position
+    - snr_prior
+    - colored_noise
+    - baseline_drift
+    - sensor_response
+    - target_rms
+    - preprocessing
+  calibration:
+    source_split: followup_train
+    observable: hilbert_envelope_support_above_25pct_peak_ms
+    robust_quantile_interval: [0.05, 0.95]
+    quantile_knots: 101
+    candidate_tukey_alpha: [0.25, 0.50, 1.00]
+    selection_metric: minimum_train_post_match_smd_max_then_maximum_retained_fraction
+    selected_tukey_alpha: 0.50
+    pilot_seed: 20260716
+    pilot_examples_per_domain: 1000
+  forbidden:
+    - validation_or_test_template_injection
+    - corrected_validation_outcome_tuning
+    - snr_recalibration
+    - extra_spectral_modes
+    - representation_retraining
+
+generation:
+  seed: 42
+  train_latents: 5000
+  validation_latents: 1000
+  test_latents: 1000
+  views_per_latent: 2
+  output_length: 4096
+  test_variant: heldout_sensor
+
+evaluation:
+  max_train_per_domain: 1000
+  max_validation_per_domain: 500
+  sample_seeds:
+    real_train: 42
+    real_validation: 43
+    simulation_train: 52
+    simulation_validation: 53
+  primary_caliper: 1.50
+  sensitivity_calipers: [1.00, 2.00]
+  observable_names:
+    - duration_ms
+    - dominant_frequency_hz
+    - rms
+    - snr_estimate
+    - spectral_peak_count
+    - event_offset_fraction
+  support_gate:
+    minimum_retained_fraction_train: 0.50
+    minimum_retained_fraction_validation: 0.50
+    maximum_post_match_smd_train: 0.25
+    maximum_post_match_smd_validation: 0.25
+  domain_probe:
+    feature_sets: [observables, signal_summary, downsampled_signal]
+    models: [linear, forest]
+    primary_feature_set: signal_summary
+    primary_model: linear
+    grouped_bootstrap_repetitions: 1000
+    grouped_bootstrap_seed: 44
+    interpretation_bands:
+      future_bridge_plausible_max_auc: 0.70
+      residual_gap_max_auc: 0.85
+      major_gap_min_auc_exclusive: 0.85
+
+decision:
+  corrected_support_pass: apply support_gate literally at primary_caliper
+  auc_interpretation: apply domain_probe.interpretation_bands only if corrected_support_pass
+  representation_training_authorized: false
+  followup_test_opening_authorized: false
+  stop_if_support_fails: true
+  scientific_scope: simulator adequacy diagnostic for future work only

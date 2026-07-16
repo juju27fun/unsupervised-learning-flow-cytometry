@@ -20,7 +20,12 @@ The next four-week mechanistic study is specified separately in
 [`docs/YEAST_SSL_ONE_MONTH_FOLLOWUP_PLAN_2026-07-16.md`](docs/YEAST_SSL_ONE_MONTH_FOLLOWUP_PLAN_2026-07-16.md).
 It does not reopen the frozen v1 result or its exhausted final split.
 Week 1 is closed in the
-[`execution report`](docs/YEAST_SSL_WEEK1_EXECUTION_REPORT_2026-07-16.md).
+[`Week 1 execution report`](docs/YEAST_SSL_WEEK1_EXECUTION_REPORT_2026-07-16.md).
+The equal-budget R0-R3 study is closed as a controlled negative in the
+[`Week 2 execution report`](docs/YEAST_SSL_WEEK2_EXECUTION_REPORT_2026-07-16.md):
+R3 improved simulated-factor recovery but failed the frozen rank,
+complementarity, and all-seed convergence gate. Week 3 is restricted to the
+targeted simulator correction; `followup_test` remains sealed.
 
 Do not relaunch legacy configurations or tune against the exhausted final split.
 Existing runs remain evidence and are not deleted.

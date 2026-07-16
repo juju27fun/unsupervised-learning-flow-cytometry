@@ -386,3 +386,24 @@ is a controlled negative: A4 learns intended physical factors and improves A3,
 but loses to the handcrafted baseline on the one-time restricted endpoint.
 The A0-A4 protocol is frozen, Gate 6 is not authorized, and no further use of
 the final split is permitted for selection.
+
+## Follow-Up Week 2: Collapse-Aware Spectral SSL
+
+The prospective R0-R3 matrix completed on the pfcalcul Jupyter runner for seeds
+42/43/44. All 12 runs used 4,710 optimizer steps, the same data and model, and
+no sealed split. A corrected deterministic smoke preceded the full run. The
+first queue status was conservatively marked failed when the runner disappeared,
+but all scientific outputs had completed; an idempotent resume reused them and
+returned code 0 without retraining.
+
+All 1,080 downstream probes converged without warning. R3 versus R0 preserved
+10%-label macro F1 (`+0.000`, 95% `[-0.021, +0.019]`) and improved continuous
+factor retention (`+0.055`, `[+0.044, +0.070]`), but its effective-rank ratio
+was only `0.969`, no frozen primary metric had a strictly positive interval,
+and seed 44 failed the adaptation-loss trend in every R0-R3 cell. Acquisition
+and quality retrieval purity remained `1.0` for all cells.
+
+Decision: do not promote R3 and do not open `followup_test`. Week 3 may execute
+only the targeted simulator correction already required by the Week 1 bridge
+audit. The complete result is in
+[`YEAST_SSL_WEEK2_EXECUTION_REPORT_2026-07-16.md`](YEAST_SSL_WEEK2_EXECUTION_REPORT_2026-07-16.md).

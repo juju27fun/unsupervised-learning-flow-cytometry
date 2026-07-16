@@ -2,12 +2,15 @@
 
 **Date:** 2026-07-16
 
-**Status:** working plan; freeze protocol v2 before the first new full training
+**Status:** Week 2 complete; R3 rejected; Week 3 restricted to targeted simulator correction
 
 **Duration:** four weeks
 
 **Week 1 status:** complete. See
 [`YEAST_SSL_WEEK1_EXECUTION_REPORT_2026-07-16.md`](YEAST_SSL_WEEK1_EXECUTION_REPORT_2026-07-16.md).
+
+**Week 2 status:** complete controlled negative. See
+[`YEAST_SSL_WEEK2_EXECUTION_REPORT_2026-07-16.md`](YEAST_SSL_WEEK2_EXECUTION_REPORT_2026-07-16.md).
 
 **Previous study:**
 [`YEAST_SSL_REBUILT_STUDY_REPORT.md`](YEAST_SSL_REBUILT_STUDY_REPORT.md)
@@ -179,6 +182,12 @@ Week 1 passes only when:
 - R0-R3 losses, seeds, budgets, and promotion rules are frozen.
 
 ## 7. Week 2: Collapse-Aware Spectral SSL
+
+**Execution status:** complete. R3 failed the frozen promotion gate. Physical
+factor recovery improved, but effective rank did not, no primary downstream or
+complementarity interval was strictly positive, and only two of three R3 seeds
+met the convergence criterion. Quality-balanced adaptation, the optional CNN
+control, and final-test opening are not authorized by this result.
 
 Use one transformer architecture, the same training data, optimizer, batch size,
 epoch budget, and representation seeds `42`, `43`, and `44`.

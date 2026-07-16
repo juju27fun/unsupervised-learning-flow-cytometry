@@ -16,6 +16,10 @@ then consult the
 [`critique and rebuild plan`](docs/YEAST_SSL_CRITIQUE_AND_REBUILD_PLAN.md) and
 [`execution log`](docs/YEAST_SSL_EXECUTION_LOG.md) for design history.
 
+The next four-week mechanistic study is specified separately in
+[`docs/YEAST_SSL_ONE_MONTH_FOLLOWUP_PLAN_2026-07-16.md`](docs/YEAST_SSL_ONE_MONTH_FOLLOWUP_PLAN_2026-07-16.md).
+It does not reopen the frozen v1 result or its exhausted final split.
+
 Do not relaunch legacy configurations or tune against the exhausted final split.
 Existing runs remain evidence and are not deleted.
 

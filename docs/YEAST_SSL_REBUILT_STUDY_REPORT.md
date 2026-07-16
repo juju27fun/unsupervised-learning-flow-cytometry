@@ -12,6 +12,9 @@ yeast representation study. The original critique and preregistered decisions
 remain in [`YEAST_SSL_CRITIQUE_AND_REBUILD_PLAN.md`](YEAST_SSL_CRITIQUE_AND_REBUILD_PLAN.md).
 The chronological infrastructure record is in
 [`YEAST_SSL_EXECUTION_LOG.md`](YEAST_SSL_EXECUTION_LOG.md).
+The separately preregistered one-month follow-up is in
+[`YEAST_SSL_ONE_MONTH_FOLLOWUP_PLAN_2026-07-16.md`](YEAST_SSL_ONE_MONTH_FOLLOWUP_PLAN_2026-07-16.md);
+it does not reopen this protocol or its final test.
 
 ## Abstract
 

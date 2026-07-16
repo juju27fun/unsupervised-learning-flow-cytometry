@@ -101,6 +101,21 @@ def validate_study_config(config: dict[str, Any]) -> None:
         masking["min_block_ms"]
     ):
         raise ValueError("Invalid masking block duration")
+    if not 0.0 < float(masking["mask_ratio"]) < 1.0:
+        raise ValueError("masking.mask_ratio must be in (0, 1)")
+    for key, default in (
+        ("high_derivative_probability", 0.25),
+        ("event_biased_probability", 0.0),
+    ):
+        if not 0.0 <= float(masking.get(key, default)) <= 1.0:
+            raise ValueError(f"masking.{key} must be in [0, 1]")
+    strategy = str(masking.get("strategy", "time_blocks"))
+    if strategy not in {"time_blocks", "patch_aligned_isolated"}:
+        raise ValueError(f"Unsupported masking strategy: {strategy}")
+    if strategy == "patch_aligned_isolated" and int(
+        masking.get("minimum_visible_tokens_between_masks", 1)
+    ) < 0:
+        raise ValueError("minimum_visible_tokens_between_masks must be non-negative")
     roles = (
         set(policy["preserve_predict"]),
         set(policy["randomize_invariant"]),
@@ -108,3 +123,37 @@ def validate_study_config(config: dict[str, Any]) -> None:
     )
     if any(left & right for index, left in enumerate(roles) for right in roles[index + 1 :]):
         raise ValueError("Information-policy roles must be disjoint")
+
+
+def validate_mask_ablation_config(config: dict[str, Any]) -> None:
+    policies = config.get("policies", {})
+    expected = {"L0", "S25", "S10", "SE25", "SE10", "P25", "P10", "PE25", "PE10"}
+    if set(policies) != expected:
+        raise ValueError(f"Mask ablation policies must be {sorted(expected)}")
+    for name, policy in policies.items():
+        if not 0.0 < float(policy["mask_ratio"]) < 1.0:
+            raise ValueError(f"{name}.mask_ratio must be in (0, 1)")
+        if float(policy["min_block_ms"]) <= 0.0 or float(policy["max_block_ms"]) < float(
+            policy["min_block_ms"]
+        ):
+            raise ValueError(f"{name} has invalid block durations")
+        for key in ("high_derivative_probability", "event_biased_probability"):
+            if not 0.0 <= float(policy[key]) <= 1.0:
+                raise ValueError(f"{name}.{key} must be in [0, 1]")
+        strategy = str(policy.get("strategy", "time_blocks"))
+        if strategy not in {"time_blocks", "patch_aligned_isolated"}:
+            raise ValueError(f"{name}.strategy is unsupported")
+        if strategy == "patch_aligned_isolated" and int(
+            policy.get("minimum_visible_tokens_between_masks", 1)
+        ) < 0:
+            raise ValueError(f"{name} has a negative visible-token gap")
+    if config["training"].get("architecture_change_allowed") is not False:
+        raise ValueError("The first mask ablation must hold architecture fixed")
+    if config["training"].get("target_change_allowed") is not False:
+        raise ValueError("The first mask ablation must hold the reconstruction target fixed")
+    candidates = set(config["training"].get("candidate_policies", []))
+    diagnostics = set(config["training"].get("diagnostic_only_policies", []))
+    if candidates != {"P25", "P10", "PE25", "PE10"}:
+        raise ValueError("Only patch-aligned policies may enter candidate training")
+    if candidates & diagnostics or candidates | diagnostics != expected:
+        raise ValueError("Candidate and diagnostic mask policies must partition all policies")

@@ -4,6 +4,7 @@ import numpy as np
 
 from p3_ssl.masking import (
     PatchSpec,
+    build_patch_aligned_isolated_masks,
     build_ssl_masks,
     make_time_mask,
     mask_coherence_summary,
@@ -102,3 +103,24 @@ def test_build_ssl_masks_respects_event_hidden_cap_when_feasible() -> None:
     assert bool(masks["mask_accepted"])
     assert summary["event_target_points"] > 0
     assert summary["max_event_hidden_fraction"] <= 0.75
+
+
+def test_patch_aligned_masks_do_not_amplify_hidden_support() -> None:
+    spec = PatchSpec(input_length=64, patch_size=4, patch_stride=4)
+    signal = np.sin(np.arange(64, dtype=np.float32))
+    event = np.zeros(64, dtype=bool)
+    event[16:48] = True
+    masks = build_patch_aligned_isolated_masks(
+        signal,
+        spec,
+        np.random.default_rng(4),
+        mask_ratio=0.25,
+        event_mask=event,
+        minimum_visible_tokens_between_masks=1,
+        max_mask_attempts=4,
+    )
+    selected = np.flatnonzero(masks["token_mask"])
+    assert len(selected) == 4
+    assert np.all(np.diff(selected) >= 2)
+    np.testing.assert_array_equal(masks["target_time_mask"], masks["token_time_mask"])
+    assert masks["target_time_mask"].mean() == 0.25

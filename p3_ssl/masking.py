@@ -312,3 +312,110 @@ def build_ssl_masks(
     best["mask_accepted"] = np.asarray(accepted, dtype=bool)
     return best
 
+
+def build_patch_aligned_isolated_masks(
+    signal: np.ndarray,
+    spec: PatchSpec,
+    rng: np.random.Generator,
+    *,
+    mask_ratio: float,
+    event_mask: np.ndarray | None = None,
+    event_biased_probability: float = 0.0,
+    high_derivative_probability: float = 0.0,
+    minimum_visible_tokens_between_masks: int = 1,
+    avoid_fully_hidden_events: bool = False,
+    max_event_hidden_fraction: float | None = None,
+    max_mask_attempts: int = 1,
+) -> dict[str, np.ndarray]:
+    """Mask isolated complete patches so target and hidden support are identical."""
+    if not 0.0 < mask_ratio < 1.0:
+        raise ValueError("mask_ratio must be in (0, 1)")
+    if not 0.0 <= event_biased_probability <= 1.0:
+        raise ValueError("event_biased_probability must be in [0, 1]")
+    if not 0.0 <= high_derivative_probability <= 1.0:
+        raise ValueError("high_derivative_probability must be in [0, 1]")
+    if minimum_visible_tokens_between_masks < 0:
+        raise ValueError("minimum_visible_tokens_between_masks must be non-negative")
+    if max_mask_attempts <= 0:
+        raise ValueError("max_mask_attempts must be positive")
+    if spec.patch_stride != spec.patch_size:
+        raise ValueError("patch-aligned isolated masking requires non-overlapping patches")
+    signal = np.asarray(signal, dtype=np.float32)
+    if signal.ndim != 1 or signal.size != spec.input_length:
+        raise ValueError("signal must be 1D and match spec.input_length")
+    event = (
+        np.zeros(spec.input_length, dtype=bool)
+        if event_mask is None
+        else np.asarray(event_mask, dtype=bool)
+    )
+    if event.ndim != 1 or event.size != spec.input_length:
+        raise ValueError("event_mask must be 1D and match spec.input_length")
+
+    event_tokens = np.asarray(
+        [bool(event[start:end].any()) for start, end in spec.spans], dtype=bool
+    )
+    derivative_points = high_derivative_candidates(signal)
+    derivative_mask = np.zeros(spec.input_length, dtype=bool)
+    derivative_mask[derivative_points] = True
+    derivative_tokens = np.asarray(
+        [bool(derivative_mask[start:end].any()) for start, end in spec.spans], dtype=bool
+    )
+    requested_tokens = max(1, int(round(spec.n_tokens * mask_ratio)))
+
+    def draw_once() -> dict[str, np.ndarray]:
+        selected = np.zeros(spec.n_tokens, dtype=bool)
+        available = np.ones(spec.n_tokens, dtype=bool)
+        for _ in range(requested_tokens):
+            candidates = np.flatnonzero(available)
+            if candidates.size == 0:
+                break
+            if rng.random() < event_biased_probability:
+                preferred = candidates[event_tokens[candidates]]
+                if preferred.size:
+                    candidates = preferred
+            elif rng.random() < high_derivative_probability:
+                preferred = candidates[derivative_tokens[candidates]]
+                if preferred.size:
+                    candidates = preferred
+            token = int(rng.choice(candidates))
+            selected[token] = True
+            start = max(0, token - minimum_visible_tokens_between_masks)
+            end = min(spec.n_tokens, token + minimum_visible_tokens_between_masks + 1)
+            available[start:end] = False
+        target = token_mask_to_time_mask(selected, spec)
+        return {
+            "target_time_mask": target,
+            "hidden_time_mask": target.copy(),
+            "token_mask": selected,
+            "token_time_mask": target.copy(),
+            "blocks": np.asarray(mask_spans(target), dtype=np.int64),
+        }
+
+    best: dict[str, np.ndarray] | None = None
+    best_score: tuple[int, float] | None = None
+    accepted = False
+    attempts = 0
+    for attempts in range(1, max_mask_attempts + 1):
+        candidate = draw_once()
+        summary = mask_coherence_summary(candidate["target_time_mask"], candidate["token_time_mask"], event)
+        score = (
+            int(summary["fully_hidden_event_count"]),
+            float(summary["max_event_hidden_fraction"]),
+        )
+        if best is None or best_score is None or score < best_score:
+            best = candidate
+            best_score = score
+        if mask_is_event_coherent(
+            candidate["token_time_mask"],
+            event,
+            avoid_fully_hidden_events=avoid_fully_hidden_events,
+            max_event_hidden_fraction=max_event_hidden_fraction,
+        ):
+            best = candidate
+            accepted = True
+            break
+    if best is None:
+        raise RuntimeError("failed to sample a patch-aligned SSL mask")
+    best["mask_attempts"] = np.asarray(attempts, dtype=np.int64)
+    best["mask_accepted"] = np.asarray(accepted, dtype=bool)
+    return best

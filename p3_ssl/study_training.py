@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import itertools
 import json
+import math
 import random
 from dataclasses import asdict
 from pathlib import Path
@@ -13,7 +14,7 @@ from torch.utils.data import DataLoader
 
 from .config import validate_study_config
 from .losses import masked_mse
-from .masking import PatchSpec, build_ssl_masks
+from .masking import PatchSpec, build_patch_aligned_isolated_masks, build_ssl_masks
 from .study_data import RealEventDataset, SimulatedLatentDataset, validate_study_dataset_contracts
 from .study_data import CONTINUOUS_FACTORS
 from .study_model import (
@@ -72,19 +73,41 @@ def build_mask_batch(
     token_masks = []
     hidden_masks = []
     for index in range(signals.shape[0]):
-        result = build_ssl_masks(
-            signal=signals[index, 0].detach().cpu().numpy(),
-            spec=spec,
-            rng=np.random.default_rng(seed + index * 7919),
-            mask_ratio=float(masking["mask_ratio"]),
-            min_block_length=int(round(float(masking["min_block_ms"]) * samples_per_ms)),
-            max_block_length=int(round(float(masking["max_block_ms"]) * samples_per_ms)),
-            guard_points=int(round(float(masking["guard_ms"]) * samples_per_ms)),
-            event_mask=event_masks[index].detach().cpu().numpy(),
-            avoid_fully_hidden_events=bool(masking["avoid_fully_hidden_events"]),
-            max_event_hidden_fraction=float(masking["max_event_hidden_fraction"]),
-            max_mask_attempts=int(masking["max_mask_attempts"]),
-        )
+        common = {
+            "signal": signals[index, 0].detach().cpu().numpy(),
+            "spec": spec,
+            "rng": np.random.default_rng(seed + index * 7919),
+            "mask_ratio": float(masking["mask_ratio"]),
+            "high_derivative_probability": float(
+                masking.get("high_derivative_probability", 0.25)
+            ),
+            "event_mask": event_masks[index].detach().cpu().numpy(),
+            "event_biased_probability": float(masking.get("event_biased_probability", 0.0)),
+            "avoid_fully_hidden_events": bool(masking["avoid_fully_hidden_events"]),
+            "max_event_hidden_fraction": float(masking["max_event_hidden_fraction"]),
+            "max_mask_attempts": int(masking["max_mask_attempts"]),
+        }
+        strategy = str(masking.get("strategy", "time_blocks"))
+        if strategy == "patch_aligned_isolated":
+            result = build_patch_aligned_isolated_masks(
+                **common,
+                minimum_visible_tokens_between_masks=int(
+                    masking.get("minimum_visible_tokens_between_masks", 1)
+                ),
+            )
+        elif strategy == "time_blocks":
+            result = build_ssl_masks(
+                **common,
+                min_block_length=int(
+                    round(float(masking["min_block_ms"]) * samples_per_ms)
+                ),
+                max_block_length=int(
+                    round(float(masking["max_block_ms"]) * samples_per_ms)
+                ),
+                guard_points=int(round(float(masking["guard_ms"]) * samples_per_ms)),
+            )
+        else:
+            raise ValueError(f"Unsupported masking strategy: {strategy}")
         target_masks.append(result["target_time_mask"])
         token_masks.append(result["token_mask"])
         hidden_masks.append(result["token_time_mask"])
@@ -125,6 +148,68 @@ def nearest_baseline(signals: torch.Tensor, hidden_masks: torch.Tensor) -> torch
         reconstructed[hidden] = signal[nearest[hidden]]
         outputs.append(reconstructed)
     return torch.from_numpy(np.stack(outputs)).to(signals.device).unsqueeze(1)
+
+
+def visible_mean_baseline(signals: torch.Tensor, hidden_masks: torch.Tensor) -> torch.Tensor:
+    """Predict every sample with the per-signal mean of the visible context."""
+    if signals.ndim != 3 or signals.shape[1] != 1:
+        raise ValueError("signals must have shape (batch, 1, length)")
+    if hidden_masks.shape != signals.shape[:1] + signals.shape[2:]:
+        raise ValueError("hidden_masks must have shape (batch, length)")
+    visible = (~hidden_masks.to(signals.device)).unsqueeze(1)
+    count = visible.sum(dim=-1, keepdim=True).clamp_min(1)
+    mean = (signals * visible).sum(dim=-1, keepdim=True) / count
+    return mean.expand_as(signals)
+
+
+def reconstruction_error_components(
+    prediction: torch.Tensor,
+    target: torch.Tensor,
+    target_mask: torch.Tensor,
+    event_mask: torch.Tensor,
+) -> dict[str, float | int]:
+    """Return additive reconstruction statistics for exact dataset aggregation."""
+    if prediction.shape != target.shape or target.ndim != 3 or target.shape[1] != 1:
+        raise ValueError("prediction and target must have shape (batch, 1, length)")
+    expected_mask_shape = target.shape[:1] + target.shape[2:]
+    if target_mask.shape != expected_mask_shape or event_mask.shape != expected_mask_shape:
+        raise ValueError("target_mask and event_mask must have shape (batch, length)")
+    target_mask = target_mask.to(device=target.device, dtype=torch.bool)
+    event_mask = event_mask.to(device=target.device, dtype=torch.bool)
+    squared_error = torch.square(prediction - target)[:, 0]
+    prediction_squared = torch.square(prediction[:, 0])
+    target_squared = torch.square(target[:, 0])
+    event_target = target_mask & event_mask
+    background_target = target_mask & ~event_mask
+
+    def total(values: torch.Tensor, mask: torch.Tensor) -> float:
+        return float(values[mask].sum().detach().cpu())
+
+    return {
+        "squared_error_sum": total(squared_error, target_mask),
+        "event_squared_error_sum": total(squared_error, event_target),
+        "background_squared_error_sum": total(squared_error, background_target),
+        "prediction_squared_sum": total(prediction_squared, target_mask),
+        "target_squared_sum": total(target_squared, target_mask),
+        "target_count": int(target_mask.sum().detach().cpu()),
+        "event_target_count": int(event_target.sum().detach().cpu()),
+        "background_target_count": int(background_target.sum().detach().cpu()),
+    }
+
+
+def _merge_reconstruction_components(
+    destination: dict[str, float | int], source: dict[str, float | int]
+) -> None:
+    for key, value in source.items():
+        destination[key] = destination.get(key, 0) + value
+
+
+def _region_mse(components: dict[str, float | int], region: str) -> float | None:
+    prefix = "" if region == "all" else f"{region}_"
+    count = int(components[f"{prefix}target_count"])
+    if count == 0:
+        return None
+    return float(components[f"{prefix}squared_error_sum"]) / count
 
 
 def _simulation_loss(
@@ -198,11 +283,11 @@ def evaluate_reconstruction_controls(
     seed: int,
     simulation: bool,
     device: torch.device,
-) -> dict[str, float]:
+) -> dict[str, float | int | None]:
     model.eval()
-    model_losses: list[float] = []
-    interpolation_losses: list[float] = []
-    nearest_losses: list[float] = []
+    totals: dict[str, dict[str, float | int]] = {
+        name: {} for name in ("model", "zero", "visible_mean", "interpolation", "nearest")
+    }
     for batch_index, batch in enumerate(loader):
         if simulation:
             batch_size, views, channels, length = batch["signals"].shape
@@ -216,16 +301,54 @@ def evaluate_reconstruction_controls(
         )
         output = model(signals, token_mask.to(device))
         target_device = target_mask.to(device)
-        model_losses.append(float(masked_mse(output["reconstruction"], signals, target_device)))
         interpolation = interpolation_baseline(signals, hidden_mask)
         nearest = nearest_baseline(signals, hidden_mask)
-        interpolation_losses.append(float(masked_mse(interpolation, signals, target_device)))
-        nearest_losses.append(float(masked_mse(nearest, signals, target_device)))
-    return {
-        "model_masked_mse": float(np.mean(model_losses)),
-        "interpolation_masked_mse": float(np.mean(interpolation_losses)),
-        "nearest_masked_mse": float(np.mean(nearest_losses)),
-    }
+        predictions = {
+            "model": output["reconstruction"],
+            "zero": torch.zeros_like(signals),
+            "visible_mean": visible_mean_baseline(signals, hidden_mask),
+            "interpolation": interpolation,
+            "nearest": nearest,
+        }
+        for name, prediction in predictions.items():
+            _merge_reconstruction_components(
+                totals[name],
+                reconstruction_error_components(
+                    prediction, signals, target_device, events.to(device)
+                ),
+            )
+
+    result: dict[str, float | int | None] = {}
+    for name, components in totals.items():
+        result[f"{name}_masked_mse"] = _region_mse(components, "all")
+        result[f"{name}_event_region_masked_mse"] = _region_mse(components, "event")
+        result[f"{name}_background_region_masked_mse"] = _region_mse(
+            components, "background"
+        )
+    model_components = totals["model"]
+    target_count = int(model_components["target_count"])
+    zero_mse = result["zero_masked_mse"]
+    model_mse = result["model_masked_mse"]
+    result.update(
+        {
+            "model_relative_improvement_vs_zero": (
+                (zero_mse - model_mse) / zero_mse
+                if zero_mse is not None and zero_mse > 0.0 and model_mse is not None
+                else None
+            ),
+            "model_output_rms_on_mask": math.sqrt(
+                float(model_components["prediction_squared_sum"]) / target_count
+            ),
+            "target_rms_on_mask": math.sqrt(
+                float(model_components["target_squared_sum"]) / target_count
+            ),
+            "target_event_fraction": (
+                int(model_components["event_target_count"]) / target_count
+            ),
+            "target_count": target_count,
+        }
+    )
+    return result
 
 
 @torch.no_grad()
@@ -540,6 +663,7 @@ def train_study_cell(
             "cell": cell,
             "protocol": config["study"]["protocol"],
             "model_config": asdict(model.config),
+            "masking": dict(config["masking"]),
             "model_state": model.state_dict(),
             "profile": profile,
             "seed": seed,
@@ -551,6 +675,7 @@ def train_study_cell(
         "profile": profile,
         "seed": seed,
         "device": str(device),
+        "masking": dict(config["masking"]),
         "contract": contract,
         "n_real_train": len(real_train),
         "n_real_validation": len(real_validation),

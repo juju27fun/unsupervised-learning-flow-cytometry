@@ -1,0 +1,130 @@
+study:
+  protocol: yeast-ssl-mask-ablation-v1-20260717
+  status: development_predeclared
+  source_protocol: yeast-ssl-rebuild-v1
+  base_config: configs/yeast_ssl_rebuild_v1.yaml
+  real_dataset: yeast-events-representation@v3
+  simulation_dataset: yeast-passage-simulations@v1
+  sealed_splits_allowed: false
+  post_predictability_addendum:
+    reason: short time blocks expanded to 40-74 percent hidden support under guard and patch alignment
+    outcome_data_used: development-only signal-processing baselines, no trained candidate or sealed split
+    decision: add patch-aligned isolated policies before any candidate training
+
+hypothesis:
+  failure: original 128-512 us masks make the phase-sensitive real waveform conditionally unpredictable
+  test: shorten contiguous masks before changing the reconstruction target or architecture
+  primary_contrast: S25_minus_L0_isolate_block_duration
+  secondary_contrasts:
+    - S10_minus_S25_isolate_total_mask_ratio
+    - SE25_minus_S25_isolate_event_bias_at_ratio_0p25
+    - SE10_minus_S10_isolate_event_bias_at_ratio_0p10
+
+policies:
+  L0:
+    description: frozen A1 masking control
+    strategy: time_blocks
+    mask_ratio: 0.25
+    min_block_ms: 0.128
+    max_block_ms: 0.512
+    guard_ms: 0.016
+    high_derivative_probability: 0.25
+    event_biased_probability: 0.0
+  S25:
+    description: short masks with original total mask ratio
+    strategy: time_blocks
+    mask_ratio: 0.25
+    min_block_ms: 0.008
+    max_block_ms: 0.016
+    guard_ms: 0.016
+    high_derivative_probability: 0.25
+    event_biased_probability: 0.0
+  S10:
+    description: short masks with more visible context
+    strategy: time_blocks
+    mask_ratio: 0.10
+    min_block_ms: 0.008
+    max_block_ms: 0.016
+    guard_ms: 0.016
+    high_derivative_probability: 0.25
+    event_biased_probability: 0.0
+  SE25:
+    description: short masks biased toward event samples at original ratio
+    strategy: time_blocks
+    mask_ratio: 0.25
+    min_block_ms: 0.008
+    max_block_ms: 0.016
+    guard_ms: 0.016
+    high_derivative_probability: 0.25
+    event_biased_probability: 0.75
+  SE10:
+    description: short event-biased masks with more visible context
+    strategy: time_blocks
+    mask_ratio: 0.10
+    min_block_ms: 0.008
+    max_block_ms: 0.016
+    guard_ms: 0.016
+    high_derivative_probability: 0.25
+    event_biased_probability: 0.75
+  P25:
+    description: isolated complete-patch masks at ratio 0.25
+    strategy: patch_aligned_isolated
+    mask_ratio: 0.25
+    min_block_ms: 0.016
+    max_block_ms: 0.016
+    guard_ms: 0.0
+    high_derivative_probability: 0.25
+    event_biased_probability: 0.0
+    minimum_visible_tokens_between_masks: 1
+  P10:
+    description: isolated complete-patch masks at ratio 0.10
+    strategy: patch_aligned_isolated
+    mask_ratio: 0.10
+    min_block_ms: 0.016
+    max_block_ms: 0.016
+    guard_ms: 0.0
+    high_derivative_probability: 0.25
+    event_biased_probability: 0.0
+    minimum_visible_tokens_between_masks: 1
+  PE25:
+    description: event-biased isolated complete-patch masks at ratio 0.25
+    strategy: patch_aligned_isolated
+    mask_ratio: 0.25
+    min_block_ms: 0.016
+    max_block_ms: 0.016
+    guard_ms: 0.0
+    high_derivative_probability: 0.25
+    event_biased_probability: 0.75
+    minimum_visible_tokens_between_masks: 1
+  PE10:
+    description: event-biased isolated complete-patch masks at ratio 0.10
+    strategy: patch_aligned_isolated
+    mask_ratio: 0.10
+    min_block_ms: 0.016
+    max_block_ms: 0.016
+    guard_ms: 0.0
+    high_derivative_probability: 0.25
+    event_biased_probability: 0.75
+    minimum_visible_tokens_between_masks: 1
+
+training:
+  representation_seeds: [42, 43, 44]
+  local_smoke_seed: 42
+  candidate_policies: [P25, P10, PE25, PE10]
+  diagnostic_only_policies: [L0, S25, S10, SE25, SE10]
+  equal_epochs_and_optimizer: true
+  architecture_change_allowed: false
+  target_change_allowed: false
+
+promotion_gates:
+  optimization:
+    fixed_batch_relative_improvement_vs_zero_min: 0.80
+  pretext:
+    beats_zero_all_representation_seeds: true
+    output_rms_fraction_of_target_min: 0.10
+  geometry:
+    effective_rank_min: 8.0
+    mean_pairwise_cosine_max: 0.95
+  utility:
+    require_improvement_over_random_or_raw_baseline: true
+  decision_policy: no_full_matrix_before_local_smoke_and_single_seed_development_gate

@@ -6,6 +6,9 @@
 
 **Duration:** four weeks
 
+**Week 1 status:** complete. See
+[`YEAST_SSL_WEEK1_EXECUTION_REPORT_2026-07-16.md`](YEAST_SSL_WEEK1_EXECUTION_REPORT_2026-07-16.md).
+
 **Previous study:**
 [`YEAST_SSL_REBUILT_STUDY_REPORT.md`](YEAST_SSL_REBUILT_STUDY_REPORT.md)
 

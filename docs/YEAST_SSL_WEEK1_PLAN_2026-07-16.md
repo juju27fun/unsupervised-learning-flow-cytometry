@@ -11,6 +11,9 @@ training
 
 **Full GPU training:** not authorized during Week 1
 
+**Execution status:** complete. See
+[`YEAST_SSL_WEEK1_EXECUTION_REPORT_2026-07-16.md`](YEAST_SSL_WEEK1_EXECUTION_REPORT_2026-07-16.md).
+
 ## 1. Required Week 1 Decisions
 
 By the end of the week, the evidence must answer four questions:

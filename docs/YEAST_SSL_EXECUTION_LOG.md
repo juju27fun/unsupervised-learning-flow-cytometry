@@ -1,11 +1,23 @@
 # Yeast SSL Rebuild: Execution Log
 
-**Updated:** 2026-07-15
+**Updated:** 2026-07-16
 
 This is a concise evidence log for
 [`YEAST_SSL_CRITIQUE_AND_REBUILD_PLAN.md`](YEAST_SSL_CRITIQUE_AND_REBUILD_PLAN.md).
 It records gate decisions and failed intermediate designs; it is not a results
 manuscript.
+
+## 2026-07-16: Follow-Up Week 1 Closed
+
+- Registered `yeast-events-followup@v2` with physically separated development
+  and final metadata; no old final signals copied.
+- Historical A3/A4 fusion was negative relative to handcrafted features.
+- Analytic simulation-real matching failed common support; the template
+  diagnostic passed as a non-physical positive control.
+- Froze and smoke-tested R0-R3. Week 2 objective ablation is authorized;
+  extended real adaptation is blocked pending one simulator correction.
+- Decision report:
+  [`YEAST_SSL_WEEK1_EXECUTION_REPORT_2026-07-16.md`](YEAST_SSL_WEEK1_EXECUTION_REPORT_2026-07-16.md).
 
 ## Current Gate State
 

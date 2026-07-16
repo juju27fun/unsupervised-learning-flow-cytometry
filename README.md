@@ -19,6 +19,8 @@ then consult the
 The next four-week mechanistic study is specified separately in
 [`docs/YEAST_SSL_ONE_MONTH_FOLLOWUP_PLAN_2026-07-16.md`](docs/YEAST_SSL_ONE_MONTH_FOLLOWUP_PLAN_2026-07-16.md).
 It does not reopen the frozen v1 result or its exhausted final split.
+Week 1 is closed in the
+[`execution report`](docs/YEAST_SSL_WEEK1_EXECUTION_REPORT_2026-07-16.md).
 
 Do not relaunch legacy configurations or tune against the exhausted final split.
 Existing runs remain evidence and are not deleted.

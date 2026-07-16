@@ -169,8 +169,14 @@ flowchart LR
 
 The 25% mask uses contiguous physical-time blocks with a `0.016 ms` guard. It
 therefore asks for contextual reconstruction rather than isolated-sample
-imputation. For every seed, learned reconstruction beat linear interpolation;
-this validated the pretext task but did not imply a useful representation.
+imputation. For every seed, learned reconstruction beat linear interpolation.
+A retrospective development-only audit on 2026-07-17 added the missing zero
+and visible-mean controls. A1 was marginally worse than zero for all three
+seeds, and its output RMS was only `0.7-0.9%` of target RMS. Linear
+interpolation was therefore an insufficient control for these oscillatory
+gaps: A1 reached the near-zero conditional-mean solution and did not validate
+the pretext task. The reproducible audit is
+`artifacts/unsupervised-learning-flow-cytometry/audits/yeast-a1-reconstruction-controls-v1`.
 
 ### Loss and supervision
 
@@ -401,7 +407,7 @@ morphological classes.*
 | Legacy simulator supervised variables also randomized as nuisances | The objective was internally contradictory | Rebuilt identifiable retained/nuisance policy |
 | v5 detector had 44 false positives and rejected true wide events | SNR and width heuristics were insufficient | Reviewed, revised, and froze v7 |
 | A1/A2 effective rank near 1 | Reconstruction can be solved with poor geometry | Collapse diagnostics became mandatory |
-| Reconstruction beat interpolation | Pretext task is nontrivial | Gate 4 passed only as pretext validity, not utility |
+| A1 beat interpolation but not zero | Interpolation is a misleading baseline for long oscillatory gaps | Gate 4 retrospectively fails; zero and amplitude controls are mandatory |
 | A3 improved A2 | Physics supervision carries intended information | Retain as a positive mechanism result |
 | A4 improved A3 | Real adaptation contributes | Effect is real but too small for promotion |
 | A4 did not reduce domain AUC | Adaptation did not bridge simulation to reality | Reject domain-alignment claim |
@@ -429,7 +435,7 @@ entirely_below_zero`; the immutable source run was not rewritten.
 | 1 event/split validity | Conditional pass | v7 and split checks pass for one acquisition; reliability/OOD waived, not satisfied |
 | 2 input/information contract | Pass | One physical contract and coherent factor policy enforced |
 | 3 baselines | Pass | A0 system baselines complete over the frozen splits |
-| 4 pretext validity | Pass with warning | Reconstruction beats interpolation; embeddings remain anisotropic |
+| 4 pretext validity | Retrospective fail | A1 is marginally worse than zero across three seeds and predicts less than 1% of target RMS |
 | 5 scientific promotion | Fail / controlled negative | A4 fails the primary baseline and minimum-effect criteria |
 | 6 optional expansion | Not authorized | Stop rule applies; no post-hoc rescue experiment |
 
@@ -442,7 +448,7 @@ causal A2-A3-A4 logic. They do not support deploying A4 or claiming that it
 learned a domain-general yeast representation. The handcrafted baseline remains
 the appropriate representation for the restricted source-proxy endpoint.
 
-The controlled negative result is useful: scarce real-only SSL was weak;
+The controlled negative result is useful: the tested scarce real-only masked-MSE SSL failed;
 synthetic reconstruction alone was weak and nearly collapsed; physical
 supervision repaired part of the geometry; real adaptation added a small gain;
 but neither repaired the simulation-real gap nor the class-specific failure.

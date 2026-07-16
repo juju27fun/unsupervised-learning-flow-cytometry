@@ -46,7 +46,7 @@ manuscript.
 | 1: event and split validity | Conditional pass under scope waiver | The v7 review gives candidate precision `48/48` and full-trace `TP=85`, `FP=1`, `FN=1`; reviewer reliability and a second acquisition remain absent | Authorize in-session study only; biological and acquisition-OOD claims remain prohibited |
 | 2: input and information contract | Pass | P3 loaders, config, masking, loss, and simulator policy enforce the frozen contract | Smoke training authorized |
 | 3: baseline readiness | Pass | Full A0 baselines and label-efficiency evaluation completed with converged probes | Continue frozen A1-A4 comparison |
-| 4: pretext validity | Pass with embedding-health warning | All seeds beat interpolation, but A1/A2 nearly collapse and A3/A4 remain anisotropic | Interpret reconstruction separately from utility |
+| 4: pretext validity | Retrospective fail | The 2026-07-17 zero-control audit shows A1 marginally worse than zero at every seed, with less than 1% output/target RMS; A1/A2 also collapse | Treat the long-block masked-MSE formulation as a failed pretext |
 | 5: scientific promotion | Controlled negative | Development rejected promotion; one-time in-session test confirms A4 below handcrafted | Do not promote A4; no OOD claim |
 | 6: optional methods | Not authorized | Gate 5 failed and stop rule applies | No post-hoc alignment, inversion, or architecture search |
 
@@ -348,8 +348,10 @@ It records these main mechanism findings:
   checkpoint, exposing a detector-quality shortcut;
 - A4 mean robustness agreement is about `0.875`, with worst perturbation near
   `0.570`;
-- reconstruction beats interpolation for every representation seed, showing a
-  valid pretext task but not downstream superiority.
+- reconstruction beats interpolation for every representation seed, but the
+  2026-07-17 audit shows that every A1 seed is marginally worse than zero and
+  predicts only `0.7-0.9%` of target RMS. Interpolation was a misleading
+  oscillatory-gap control; the A1 pretext task failed.
 
 ## One-Time Final Evaluation
 

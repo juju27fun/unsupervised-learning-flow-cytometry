@@ -31,6 +31,7 @@ def main() -> None:
     parser.add_argument("--dataset-root", type=Path, required=True)
     parser.add_argument("--complementarity-root", type=Path, required=True)
     parser.add_argument("--domain-root", type=Path, required=True)
+    parser.add_argument("--embedding-domain-root", type=Path, required=True)
     parser.add_argument("--preflight-root", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--run-id", required=True)
@@ -47,6 +48,12 @@ def main() -> None:
     preflight = json.loads((args.preflight_root / "preflight_metrics.json").read_text())
     method = pd.read_csv(args.complementarity_root / "method_summary.csv")
     domain_metrics = pd.read_csv(args.domain_root / "domain_probe_metrics.csv")
+    embedding_metrics = pd.read_csv(
+        args.embedding_domain_root / "embedding_domain_metrics.csv"
+    )
+    embedding_matched_linear = embedding_metrics[
+        (embedding_metrics.match_state == "matched") & (embedding_metrics.model == "linear")
+    ].set_index(["simulation_source", "representation"])
 
     selected_names = [
         "family_time_morphology", "family_frequency", "family_envelope",
@@ -150,6 +157,15 @@ def main() -> None:
         "physical factors and is not eligible for training.",
         "",
         "![Domain bridge audit](domain_bridge_audit.png)",
+        "",
+        "The bounded CUDA sensitivity check agrees. On the small analytic matched subset, "
+        f"linear domain AUC is {embedding_matched_linear.loc[('analytic', 'MOMENT_official'), 'validation_roc_auc']:.3f} "
+        f"for official MOMENT, {embedding_matched_linear.loc[('analytic', 'A3_s42'), 'validation_roc_auc']:.3f} for A3, "
+        f"and {embedding_matched_linear.loc[('analytic', 'A4_s42'), 'validation_roc_auc']:.3f} for A4. "
+        "These remain exploratory because common support failed. On the balanced template control, "
+        f"the corresponding AUCs are {embedding_matched_linear.loc[('template_diagnostic', 'MOMENT_official'), 'validation_roc_auc']:.3f}, "
+        f"{embedding_matched_linear.loc[('template_diagnostic', 'A3_s42'), 'validation_roc_auc']:.3f}, and "
+        f"{embedding_matched_linear.loc[('template_diagnostic', 'A4_s42'), 'validation_roc_auc']:.3f}.",
         "",
         "## Protocol and Decision",
         "",

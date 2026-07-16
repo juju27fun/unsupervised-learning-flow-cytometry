@@ -58,7 +58,7 @@ best cluster-bootstrap upper confidence limits remain below `+0.03`; the fixed
 MLP probe also finds no `+0.03` nonlinear gain. The classification is
 `redundant_with_handcrafted`.
 
-![Handcrafted feature-family audit](../../artifacts/unsupervised-learning-flow-cytometry/reports/yeast-followup-week1-v1/feature_family_macro_f1.png)
+![Handcrafted feature-family audit](../../artifacts/unsupervised-learning-flow-cytometry/reports/yeast-followup-week1-v2/feature_family_macro_f1.png)
 
 Evidence:
 
@@ -84,13 +84,20 @@ maximum SMD `0.018`; its linear signal-summary AUC is `0.546`. This positive
 control shows the audit recognizes an aligned source. It has no controlled
 physical factors and is not eligible for SSL training.
 
-![Conditional domain bridge audit](../../artifacts/unsupervised-learning-flow-cytometry/reports/yeast-followup-week1-v1/domain_bridge_audit.png)
+A bounded CUDA sensitivity check confirms the conclusion in representation
+space. On the small analytic matched subset, linear domain AUC is `0.985` for
+official MOMENT, `0.948` for A3, and `0.991` for A4; these remain exploratory
+because support failed. On the balanced template control, the corresponding
+AUCs are `0.598`, `0.564`, and `0.597`.
+
+![Conditional domain bridge audit](../../artifacts/unsupervised-learning-flow-cytometry/reports/yeast-followup-week1-v2/domain_bridge_audit.png)
 
 Evidence:
 
 - [`matching_report.json`](../../artifacts/unsupervised-learning-flow-cytometry/runs/yeast-followup-week1-domain-v3/matching_report.json)
 - [`domain_probe_metrics.csv`](../../artifacts/unsupervised-learning-flow-cytometry/runs/yeast-followup-week1-domain-v3/domain_probe_metrics.csv)
 - [`feature_importance.json`](../../artifacts/unsupervised-learning-flow-cytometry/runs/yeast-followup-week1-domain-v3/feature_importance.json)
+- [`embedding_domain_metrics.csv`](../../artifacts/unsupervised-learning-flow-cytometry/runs/yeast-followup-week1-embedding-domain-v1/embedding_domain_metrics.csv)
 
 ## 4. Frozen R0-R3 Protocol
 
@@ -126,4 +133,4 @@ duration/support and spectral-peak mismatch. Broad domain-adversarial training
 remains unjustified.
 
 The complete manifested handoff is
-[`WEEK1_DECISION.md`](../../artifacts/unsupervised-learning-flow-cytometry/reports/yeast-followup-week1-v1/WEEK1_DECISION.md).
+[`WEEK1_DECISION.md`](../../artifacts/unsupervised-learning-flow-cytometry/reports/yeast-followup-week1-v2/WEEK1_DECISION.md).

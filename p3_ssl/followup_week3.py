@@ -422,7 +422,7 @@ def plot_week3(payload: dict[str, Any], output_prefix: Path) -> list[Path]:
     axes[0, 1].set_ylabel("Maximum post-match SMD")
     for axis in axes[0]:
         axis.set_xticks(x, ("Train", "Validation"))
-        axis.legend(frameon=False, fontsize=8)
+    axes[0, 1].legend(frameon=False, fontsize=8)
 
     observable_x = np.arange(len(OBSERVABLE_NAMES))
     for source_index, (source, label) in enumerate(zip(sources, labels)):

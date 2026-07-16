@@ -24,8 +24,12 @@ Week 1 is closed in the
 The equal-budget R0-R3 study is closed as a controlled negative in the
 [`Week 2 execution report`](docs/YEAST_SSL_WEEK2_EXECUTION_REPORT_2026-07-16.md):
 R3 improved simulated-factor recovery but failed the frozen rank,
-complementarity, and all-seed convergence gate. Week 3 is restricted to the
-targeted simulator correction; `followup_test` remains sealed.
+complementarity, and all-seed convergence gate. The targeted simulator
+correction is now closed in the
+[`Week 3 execution report`](docs/YEAST_SSL_WEEK3_EXECUTION_REPORT_2026-07-16.md):
+it substantially improved common support but missed the frozen support and SMD
+gates. The monthly follow-up therefore stops without retraining or opening
+`followup_test`.
 
 Do not relaunch legacy configurations or tune against the exhausted final split.
 Existing runs remain evidence and are not deleted.

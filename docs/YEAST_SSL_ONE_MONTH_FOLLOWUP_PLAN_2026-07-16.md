@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-16
 
-**Status:** Week 2 complete; R3 rejected; Week 3 restricted to targeted simulator correction
+**Status:** closed after Week 3 controlled negative; Week 4 final evaluation not authorized
 
 **Duration:** four weeks
 
@@ -11,6 +11,9 @@
 
 **Week 2 status:** complete controlled negative. See
 [`YEAST_SSL_WEEK2_EXECUTION_REPORT_2026-07-16.md`](YEAST_SSL_WEEK2_EXECUTION_REPORT_2026-07-16.md).
+
+**Week 3 status:** complete controlled negative. See
+[`YEAST_SSL_WEEK3_EXECUTION_REPORT_2026-07-16.md`](YEAST_SSL_WEEK3_EXECUTION_REPORT_2026-07-16.md).
 
 **Previous study:**
 [`YEAST_SSL_REBUILT_STUDY_REPORT.md`](YEAST_SSL_REBUILT_STUDY_REPORT.md)
@@ -232,6 +235,11 @@ representation and skip expensive extensions.
 
 Week 3 is conditional. Run only the branches authorized by Weeks 1-2.
 
+**Execution result:** only section 8.2 was authorized. The finite-support
+envelope correction improved validation retention from `0.162` to `0.374` and
+reduced maximum post-match SMD from `2.342` to `0.641`, but failed the frozen
+`0.50` retention and `0.25` SMD gates. Sections 8.1 and 8.3 remain unauthorized.
+
 ### 8.1 Quality-balanced real adaptation
 
 If R3 passes, adapt it on a fixed mixture of:
@@ -261,6 +269,10 @@ and seeds. This is the only architecture comparison in the month. Treat it as
 a controlled mechanism experiment, not a general CNN-versus-transformer claim.
 
 ## 9. Week 4: Frozen Evaluation and Publication
+
+**Authorization result:** not authorized. Week 2 selected no representation,
+and Week 3 did not establish adequate simulator-real common support.
+`followup_test` remains sealed; the follow-up closes without final evaluation.
 
 1. Freeze the selected representation, fusion, and probe protocol.
 2. Verify that `followup_test` has never appeared in a completed or failed run.

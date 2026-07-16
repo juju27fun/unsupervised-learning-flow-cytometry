@@ -407,3 +407,22 @@ Decision: do not promote R3 and do not open `followup_test`. Week 3 may execute
 only the targeted simulator correction already required by the Week 1 bridge
 audit. The complete result is in
 [`YEAST_SSL_WEEK2_EXECUTION_REPORT_2026-07-16.md`](YEAST_SSL_WEEK2_EXECUTION_REPORT_2026-07-16.md).
+
+## Follow-Up Week 3: Targeted Simulator Correction
+
+Protocol `yeast-ssl-followup-week3-simulator-support-v1-20260716` changed only
+the event-envelope family. A train-only Hilbert-duration calibration drove a
+finite-support Tukey packet with alpha `0.25`; paired views shared one latent
+duration. The preflight accessed zero validation signals and no sealed split.
+
+pfcalcul job `20260716_yeast_followup_week3_v1` completed with return code 0.
+Relative to v1, v2 increased train/validation retained fractions from
+`0.146/0.162` to `0.323/0.374` and reduced maximum post-match SMD from
+`1.946/2.342` to `0.459/0.641`. The correction therefore improved the simulator
+but failed the frozen `0.50` retention and `0.25` SMD gates. Residual validation
+mismatch is concentrated in spectral peak count (`0.641`) and SNR (`0.487`).
+
+Decision: `stop_common_support_failed`. Matched signal-summary AUC `0.998` is
+exploratory and conditionally invalid because support failed. Do not retrain a
+representation and do not open `followup_test`. The full interpretation is in
+[`YEAST_SSL_WEEK3_EXECUTION_REPORT_2026-07-16.md`](YEAST_SSL_WEEK3_EXECUTION_REPORT_2026-07-16.md).

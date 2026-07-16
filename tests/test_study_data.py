@@ -108,3 +108,29 @@ def test_real_dataset_requires_explicit_final_open_for_sealed_split(tmp_path: Pa
         allow_sealed_split=True,
     )
     assert opened[0]["acquisition_role"] == "sealed_ood_test"
+
+
+@pytest.mark.parametrize("split", ["in_session_test", "followup_test", "test"])
+def test_real_dataset_rejects_every_final_split_by_default(tmp_path: Path, split: str) -> None:
+    root = tmp_path / "real"
+    root.mkdir()
+    np.save(root / "signals.npy", np.ones((1, 4096), dtype=np.float32))
+    _write_csv(
+        root / "events.csv",
+        [
+            {
+                "signal_row": 0,
+                "development_split": split,
+                "event_start_input_index": 100,
+                "event_end_input_index": 200,
+                "event_id": "event",
+                "record_id": "record",
+                "source_group": "budding",
+                "condition_id": "condition",
+                "acquisition_id": "session",
+                "quality": "strict",
+            }
+        ],
+    )
+    with pytest.raises(PermissionError, match="sealed"):
+        RealEventDataset(root, split)

@@ -25,7 +25,9 @@ FACTOR_RANGES = {
     "relative_component_amplitude": (0.40, 1.00),
     "frequency_separation_khz": (0.0, 8.0),
 }
-SEALED_REAL_SPLITS = frozenset({"sealed_acquisition_test"})
+SEALED_REAL_SPLITS = frozenset(
+    {"in_session_test", "sealed_acquisition_test", "followup_test", "test"}
+)
 
 
 def _read_csv(path: Path) -> list[dict[str, str]]:
@@ -76,7 +78,13 @@ class RealEventDataset(Dataset[dict[str, Any]]):
             )
         self.root = root
         self.signals = np.load(root / "signals.npy", mmap_mode="r")
-        rows = [row for row in _read_csv(root / "events.csv") if row["development_split"] == split]
+        if split == "followup_test" and allow_sealed_split:
+            metadata_path = root / "sealed_followup_test_events.csv"
+        elif split not in SEALED_REAL_SPLITS and (root / "development_events.csv").is_file():
+            metadata_path = root / "development_events.csv"
+        else:
+            metadata_path = root / "events.csv"
+        rows = [row for row in _read_csv(metadata_path) if row["development_split"] == split]
         if max_events is not None:
             rows = rows[:max_events]
         if not rows:

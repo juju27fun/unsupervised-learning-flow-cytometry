@@ -19,6 +19,21 @@ manuscript.
 - Decision report:
   [`YEAST_SSL_WEEK1_EXECUTION_REPORT_2026-07-16.md`](YEAST_SSL_WEEK1_EXECUTION_REPORT_2026-07-16.md).
 
+## 2026-07-16: Week 2 Pre-Training Addendum
+
+- The Week 1 freeze defined R0-R3, weights, budgets, and seeds but did not define
+  real paired-view construction or a computable checkpoint-selection formula.
+- Before any Week 2 outcome was produced, the versioned execution config
+  `configs/yeast_ssl_followup_week2_v1.yaml` fixed two independent block masks
+  of the same real signal, existing paired nuisance views for simulation, the
+  historical A4 synthetic replay schedule for every cell, and a fixed final
+  checkpoint with no early stopping.
+- Hierarchical paired uncertainty and promotion decisions were also made
+  executable before training. The scientific R0-R3 loss cells, architecture,
+  data, budgets, seeds, and final-split prohibitions are unchanged.
+- Local focused tests pass. pfcalcul CUDA smoke remains pending; no Week 2
+  training result has been inspected at this point.
+
 ## Current Gate State
 
 | Gate | State | Evidence | Decision |

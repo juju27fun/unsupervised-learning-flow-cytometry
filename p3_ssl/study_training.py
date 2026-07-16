@@ -329,6 +329,8 @@ def embedding_health_statistics(embeddings: np.ndarray) -> dict[str, Any]:
         raise ValueError("embeddings must have shape (n_samples, n_features)")
     centered = values - values.mean(axis=0, keepdims=True)
     standard_deviations = centered.std(axis=0)
+    covariance = centered.T @ centered / max(len(values) - 1, 1)
+    off_diagonal = covariance - np.diag(np.diag(covariance))
     singular_values = np.linalg.svd(centered, compute_uv=False)
     variances = np.square(singular_values)
     proportions = variances / max(float(variances.sum()), 1.0e-12)
@@ -347,6 +349,8 @@ def embedding_health_statistics(embeddings: np.ndarray) -> dict[str, Any]:
         "embedding_dimension": int(values.shape[1]),
         "mean_dimension_std": float(standard_deviations.mean()),
         "minimum_dimension_std": float(standard_deviations.min()),
+        "mean_absolute_off_diagonal_covariance": float(np.mean(np.abs(off_diagonal))),
+        "rms_off_diagonal_covariance": float(np.sqrt(np.mean(np.square(off_diagonal)))),
         "active_dimensions_std_gt_1e_3": int(np.count_nonzero(standard_deviations > 1.0e-3)),
         "effective_rank": effective_rank,
         "mean_off_diagonal_cosine_similarity": mean_off_diagonal,

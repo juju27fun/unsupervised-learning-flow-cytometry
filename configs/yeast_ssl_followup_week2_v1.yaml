@@ -1,0 +1,143 @@
+study:
+  protocol: yeast-ssl-followup-week2-v1-20260716
+  source_frozen_protocol: yeast-ssl-followup-v2-frozen-20260716
+  status: week2_preregistered_not_trained
+  real_dataset: yeast-events-followup@v2
+  simulation_dataset: yeast-passage-simulations@v1
+  input_contract: yeast-event-4096-followup-train-normalized-v2
+  endpoint_scope: source_group_proxy_diagnostic
+  final_split_policy: one_time_only_after_week2_selection_freeze
+  pre_training_addendum:
+    reason: frozen_week1_protocol_did_not_define_pair_construction_or_checkpoint_formula
+    outcome_data_seen: false
+    real_pair_policy: two_independent_frozen_block_masks_of_the_same_signal
+    synthetic_pair_policy: two_existing_nuisance_views_of_the_same_latent
+    adaptation_policy: historical_a4_synthetic_replay_common_to_all_cells
+    checkpoint_policy: fixed_final_epoch_no_early_stopping
+
+data:
+  input_length: 4096
+  sampling_frequency_hz: 1000000
+  real_train_split: followup_train
+  real_validation_split: followup_validation
+  real_final_split: followup_test
+  simulation_train_split: train
+  simulation_validation_split: validation
+  forbidden_training_splits: [in_session_test, sealed_acquisition_test, followup_test, test]
+  known_limitations:
+    shmoo_validation_blocks: 0
+    reason: only_two_shmoo_capture_blocks_remained_in_v1_development_train
+
+model:
+  architecture: patch_transformer_reconstructor
+  patch_size: 16
+  patch_stride: 16
+  d_model: 96
+  n_heads: 4
+  n_layers: 3
+  dim_feedforward: 384
+  dropout: 0.10
+  activation: gelu
+  max_tokens: 256
+  embedding_pool: mean
+
+masking:
+  mask_ratio: 0.25
+  min_block_ms: 0.128
+  max_block_ms: 0.512
+  guard_ms: 0.016
+  avoid_fully_hidden_events: true
+  max_event_hidden_fraction: 0.75
+  max_mask_attempts: 32
+
+objectives:
+  cells:
+    R0: {time_reconstruction: true, spectral_reconstruction: false, vicreg: false}
+    R1: {time_reconstruction: true, spectral_reconstruction: false, vicreg: true}
+    R2: {time_reconstruction: true, spectral_reconstruction: true, vicreg: false}
+    R3: {time_reconstruction: true, spectral_reconstruction: true, vicreg: true}
+  time_weight: 1.0
+  spectral:
+    weight: 0.20
+    transform: log_magnitude
+    windows_samples: [128, 256, 512]
+    hops_samples: [32, 64, 128]
+    epsilon: 0.000001
+  vicreg:
+    global_weight: 0.10
+    invariance_weight: 1.0
+    variance_weight: 1.0
+    covariance_weight: 0.04
+    variance_floor: 0.50
+    epsilon: 0.0001
+    minimum_independent_latents_per_batch: 2
+  common_physics_supervision:
+    continuous_weight: 0.25
+    component_count_weight: 0.10
+    nuisance_consistency_weight: 0.10
+
+training:
+  representation_seeds: [42, 43, 44]
+  optimizer: adamw
+  learning_rate: 0.0003
+  weight_decay: 0.01
+  grad_clip_norm: 1.0
+  batch_size: 32
+  synthetic_pretraining_epochs: 20
+  real_adaptation_epochs: 10
+  checkpoint_selection: fixed_final_epoch_no_early_stopping
+  maximum_pfcalcul_runtime_hours_per_cell_seed: 4
+  retry_policy: one_infrastructure_retry_no_scientific_retry
+  equal_budget_across_cells: true
+  adaptation_replay:
+    synthetic_weight_start: 0.30
+    synthetic_weight_end: 0.10
+  convergence:
+    require_all_epochs_completed: true
+    require_all_losses_finite: true
+    final_three_mean_not_above_first_three_mean: true
+  profiles:
+    smoke:
+      synthetic_pretraining_epochs: 1
+      real_adaptation_epochs: 1
+      batch_size: 4
+      max_real_events: 16
+      max_simulation_latents: 8
+      num_workers: 0
+    full:
+      synthetic_pretraining_epochs: 20
+      real_adaptation_epochs: 10
+      batch_size: 32
+      max_real_events: null
+      max_simulation_latents: null
+      num_workers: 2
+
+evaluation:
+  label_fractions: [0.01, 0.05, 0.10, 0.25, 1.00]
+  probe_seeds: [42, 43, 44]
+  grouped_bootstrap_repeats: 1000
+  smoke_grouped_bootstrap_repeats: 20
+  batch_size: 128
+  retrieval_neighbors: 5
+  calibration_bins: 10
+  primary_metrics: [macro_f1_10pct, label_efficiency_auc, handcrafted_fusion_delta]
+  representation_health: [effective_rank, per_dimension_std, off_diagonal_covariance, mean_cosine_similarity]
+  retained_factor_metrics: [continuous_relative_mse, component_balanced_accuracy]
+  paired_uncertainty:
+    unit: matched_representation_seed_then_probe_seed
+    method: hierarchical_percentile_bootstrap
+    repeats: 10000
+    seed: 20260716
+    confidence: 0.95
+    degradation_rule: fail_only_when_upper_bound_is_below_zero
+    positive_improvement_rule: pass_only_when_lower_bound_is_above_zero
+  promotion_rules:
+    effective_rank_ratio_R3_over_R0_min: 2.0
+    retained_factor_degradation_allowed: none_beyond_paired_uncertainty
+    macro_f1_degradation_allowed: none_beyond_paired_uncertainty
+    require_one_positive_metric: true
+    require_all_three_seeds_converged: true
+  stop_rules:
+    - stop_if_no_cell_passes_promotion_rules
+    - stop_if_any_cell_receives_unequal_budget
+    - stop_if_any_final_split_is_accessed

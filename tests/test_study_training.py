@@ -84,3 +84,4 @@ def test_embedding_health_detects_constant_representation() -> None:
     assert metrics["active_dimensions_std_gt_1e_3"] == 0
     assert metrics["effective_rank"] == 1.0
     assert metrics["mean_off_diagonal_cosine_similarity"] == 1.0
+    assert metrics["mean_absolute_off_diagonal_covariance"] == 0.0

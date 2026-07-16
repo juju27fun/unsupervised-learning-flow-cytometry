@@ -121,6 +121,19 @@ def summarize_week2(payload: dict[str, Any], config: dict[str, Any]) -> dict[str
                 _label_auc(payload["probe_results"], cell, representation_seed, probe_seed)
                 for probe_seed in (42, 43, 44)
             ]
+            class_recalls = {}
+            for class_name in payload["class_names"]:
+                values = [
+                    probes[(cell, representation_seed, "learned", "linear", 0.10, probe_seed)][
+                        "per_class_recall"
+                    ][class_name]
+                    for probe_seed in (42, 43, 44)
+                ]
+                observed = [float(value) for value in values if value is not None]
+                class_recalls[f"recall_{class_name}_10pct_mean"] = (
+                    float(np.mean(observed)) if observed else None
+                )
+            retrieval = metadata["cross_recording_retrieval"]
             rows.append(
                 {
                     "cell": cell,
@@ -153,10 +166,15 @@ def summarize_week2(payload: dict[str, Any], config: dict[str, Any]) -> dict[str
                         metadata["component_count_balanced_accuracy"]
                     ),
                     "retrieval_topk_purity": float(
-                        metadata["cross_recording_retrieval"]["topk_label_purity"]
+                        retrieval["topk_label_purity"]
+                    ),
+                    "retrieval_topk_quality_purity": float(retrieval["topk_quality_purity"]),
+                    "retrieval_topk_acquisition_purity": float(
+                        retrieval["topk_acquisition_purity"]
                     ),
                     "runtime_seconds": float(metadata["training_runtime"]["wall_seconds"]),
                     "optimizer_steps": int(metadata["training_runtime"]["optimizer_steps"]),
+                    **class_recalls,
                 }
             )
 
@@ -234,12 +252,13 @@ def summarize_week2(payload: dict[str, Any], config: dict[str, Any]) -> dict[str
         and comparisons["component_balanced_accuracy"]["ci95"][1] >= 0.0
     )
     macro_f1_pass = comparisons["macro_f1_10pct"]["ci95"][1] >= 0.0
-    positive_candidates = (
-        "macro_f1_10pct",
-        "label_efficiency_auc",
-        "handcrafted_fusion_delta",
-        "retrieval_topk_purity",
-    )
+    positive_candidates = tuple(config["evaluation"]["primary_metrics"])
+    unknown_positive_candidates = set(positive_candidates) - set(comparisons)
+    if unknown_positive_candidates:
+        raise ValueError(
+            "Unknown primary metrics in Week 2 promotion gate: "
+            f"{sorted(unknown_positive_candidates)}"
+        )
     positive = [name for name in positive_candidates if comparisons[name]["ci95"][0] > 0.0]
     gate = {
         "effective_rank": {
@@ -256,6 +275,7 @@ def summarize_week2(payload: dict[str, Any], config: dict[str, Any]) -> dict[str
         },
         "retained_factors_pass": retention_pass,
         "macro_f1_preserved": macro_f1_pass,
+        "positive_metric_candidates": list(positive_candidates),
         "positive_metrics_with_ci_above_zero": positive,
         "positive_metric_pass": bool(positive),
         "all_r3_seeds_converged": convergence_pass,
@@ -269,11 +289,13 @@ def summarize_week2(payload: dict[str, Any], config: dict[str, Any]) -> dict[str
     )
     return {
         "protocol": payload["protocol"],
+        "class_names": list(payload["class_names"]),
         "rows": rows,
         "paired_R3_minus_R0": comparisons,
         "gate": gate,
         "week3_quality_adaptation_authorized": gate["r3_promoted"],
         "week3_simulator_correction_required_before_transfer": True,
+        "known_limitation": payload.get("known_limitation"),
         "sealed_splits_used": [],
     }
 
@@ -327,7 +349,37 @@ def plot_week2(summary: dict[str, Any], output_prefix: Path) -> list[Path]:
 
 def write_decision_markdown(path: Path, summary: dict[str, Any]) -> None:
     gate = summary["gate"]
+    comparisons = summary["paired_R3_minus_R0"]
     decision = "PROMOTE R3" if gate["r3_promoted"] else "STOP R3 EXTENSION"
+
+    def interval(name: str) -> str:
+        result = comparisons[name]
+        low, high = result["ci95"]
+        return f"{result['mean_difference']:+.3f} [{low:+.3f}, {high:+.3f}]"
+
+    def median_or_na(rows: list[dict[str, Any]], key: str) -> str:
+        values = [float(row[key]) for row in rows if row[key] is not None]
+        return f"{np.median(values):.3f}" if values else "n/a"
+
+    cell_rows = []
+    for cell in CELLS:
+        rows = [row for row in summary["rows"] if row["cell"] == cell]
+        cell_rows.append(
+            (
+                cell,
+                sum(bool(row["converged"]) for row in rows),
+                float(np.median([row["effective_rank"] for row in rows])),
+                float(np.median([row["macro_f1_10pct_mean"] for row in rows])),
+                float(np.median([row["continuous_retention_mean"] for row in rows])),
+                float(np.median([row["handcrafted_fusion_delta_mean"] for row in rows])),
+                float(np.median([row["runtime_seconds"] for row in rows])) / 60.0,
+            )
+        )
+    r3_failed_seeds = [
+        str(row["representation_seed"])
+        for row in summary["rows"]
+        if row["cell"] == "R3" and not row["converged"]
+    ]
     lines = [
         "# Yeast SSL Week 2 Decision",
         "",
@@ -340,14 +392,78 @@ def write_decision_markdown(path: Path, summary: dict[str, Any]) -> None:
         "| Criterion | Result | Pass |",
         "|---|---:|:---:|",
         f"| Median effective-rank ratio R3/R0 | {gate['effective_rank']['ratio']:.3f} | {'yes' if gate['effective_rank']['pass'] else 'no'} |",
-        f"| Retained factors not degraded beyond uncertainty | n/a | {'yes' if gate['retained_factors_pass'] else 'no'} |",
-        f"| 10%-label macro F1 not degraded beyond uncertainty | n/a | {'yes' if gate['macro_f1_preserved'] else 'no'} |",
+        f"| Retained factors not degraded beyond uncertainty | continuous {interval('continuous_retention')}; component {interval('component_balanced_accuracy')} | {'yes' if gate['retained_factors_pass'] else 'no'} |",
+        f"| 10%-label macro F1 not degraded beyond uncertainty | {interval('macro_f1_10pct')} | {'yes' if gate['macro_f1_preserved'] else 'no'} |",
         f"| At least one positive metric with CI above zero | {', '.join(gate['positive_metrics_with_ci_above_zero']) or 'none'} | {'yes' if gate['positive_metric_pass'] else 'no'} |",
-        f"| All R3 seeds converged | n/a | {'yes' if gate['all_r3_seeds_converged'] else 'no'} |",
+        f"| All R3 seeds converged | {3 - len(r3_failed_seeds)}/3; failed: {', '.join(r3_failed_seeds) or 'none'} | {'yes' if gate['all_r3_seeds_converged'] else 'no'} |",
         "",
-        "## Consequence",
+        "Positive-gate candidates frozen in the configuration: "
+        + ", ".join(gate["positive_metric_candidates"])
+        + ".",
+        "All paired values are R3 minus R0 with a 95% hierarchical bootstrap interval.",
         "",
+        "## Cell summary",
+        "",
+        "| Cell | Converged seeds | Median effective rank | Median macro F1 at 10% | Median retained-factor gain | Median fusion delta | Median runtime (min) |",
+        "|---|---:|---:|---:|---:|---:|---:|",
     ]
+    lines.extend(
+        f"| {cell} | {converged}/3 | {rank:.3f} | {f1:.3f} | {retention:.3f} | {fusion:+.3f} | {runtime:.2f} |"
+        for cell, converged, rank, f1, retention, fusion, runtime in cell_rows
+    )
+    lines.extend(
+        [
+            "",
+            "## Paired R3-R0 effects",
+            "",
+            "| Metric | Mean difference [95% CI] |",
+            "|---|---:|",
+        ]
+    )
+    lines.extend(
+        f"| {name.replace('_', ' ')} | {interval(name)} |"
+        for name in (
+            "macro_f1_10pct",
+            "label_efficiency_auc",
+            "handcrafted_fusion_delta",
+            "continuous_retention",
+            "component_balanced_accuracy",
+            "retrieval_topk_purity",
+        )
+    )
+    lines.extend(
+        [
+            "",
+            "## Shortcut and subgroup audit",
+            "",
+            "| Cell | Median acquisition purity | Median quality purity | Median source-proxy purity |",
+            "|---|---:|---:|---:|",
+        ]
+    )
+    for cell in CELLS:
+        rows = [row for row in summary["rows"] if row["cell"] == cell]
+        lines.append(
+            f"| {cell} | {median_or_na(rows, 'retrieval_topk_acquisition_purity')} | "
+            f"{median_or_na(rows, 'retrieval_topk_quality_purity')} | "
+            f"{median_or_na(rows, 'retrieval_topk_purity')} |"
+        )
+    lines.extend(
+        [
+            "",
+            "Median learned-linear recall at 10% labels:",
+            "",
+            "| Cell | " + " | ".join(summary["class_names"]) + " |",
+            "|---|" + "---:|" * len(summary["class_names"]),
+        ]
+    )
+    for cell in CELLS:
+        rows = [row for row in summary["rows"] if row["cell"] == cell]
+        recalls = [
+            median_or_na(rows, f"recall_{class_name}_10pct_mean")
+            for class_name in summary["class_names"]
+        ]
+        lines.append(f"| {cell} | " + " | ".join(recalls) + " |")
+    lines.extend(["", "## Consequence", ""])
     if gate["r3_promoted"]:
         lines.append("Week 3 quality-balanced adaptation is authorized, after the required targeted simulator correction.")
     else:
@@ -355,6 +471,8 @@ def write_decision_markdown(path: Path, summary: dict[str, Any]) -> None:
     lines.extend(
         [
             "",
+            "Seed 44 failed the same adaptation-loss trend criterion in every cell; this is a shared seed sensitivity, but the frozen gate still requires all R3 seeds to converge.",
+            "The validation split contains no shmoo capture block, so shmoo recall is not estimable here.",
             "The source-group endpoint remains an acquisition-condition proxy; it is not a yeast-morphology claim.",
         ]
     )

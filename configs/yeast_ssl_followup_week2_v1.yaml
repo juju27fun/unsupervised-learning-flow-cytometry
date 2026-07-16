@@ -12,6 +12,7 @@ study:
     outcome_data_seen: false
     real_pair_policy: two_independent_frozen_block_masks_of_the_same_signal
     synthetic_pair_policy: two_existing_nuisance_views_of_the_same_latent
+    spectral_padding_policy: uncentered_stft_without_reflection_padding
     adaptation_policy: historical_a4_synthetic_replay_common_to_all_cells
     checkpoint_policy: fixed_final_epoch_no_early_stopping
 
@@ -62,6 +63,7 @@ objectives:
     transform: log_magnitude
     windows_samples: [128, 256, 512]
     hops_samples: [32, 64, 128]
+    center: false
     epsilon: 0.000001
   vicreg:
     global_weight: 0.10

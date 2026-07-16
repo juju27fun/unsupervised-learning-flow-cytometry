@@ -64,6 +64,8 @@ def validate_followup_config(config: dict[str, Any]) -> None:
         raise ValueError("STFT resolutions differ from the frozen protocol")
     if any(window // 4 != hop for window, hop in zip(windows, hops)):
         raise ValueError("Every STFT hop must be one quarter of its window")
+    if config["objectives"]["spectral"].get("center") is not False:
+        raise ValueError("Week 2 STFT must not use reflection padding")
     for profile in config["training"]["profiles"].values():
         if int(profile["batch_size"]) < 2:
             raise ValueError("Every Week 2 batch must contain at least two independent samples")
@@ -120,6 +122,7 @@ def objective_config_from_followup(config: dict[str, Any]) -> FollowupObjectiveC
     return FollowupObjectiveConfig(
         spectral_windows=tuple(int(value) for value in spectral["windows_samples"]),
         spectral_hop_divisor=4,
+        spectral_center=bool(spectral["center"]),
         spectral_epsilon=float(spectral["epsilon"]),
         time_weight=float(config["objectives"]["time_weight"]),
         spectral_weight=float(spectral["weight"]),
@@ -313,7 +316,7 @@ def train_followup_cell(
         raise ValueError(f"Dataset contract failed: {contract['errors']}")
     profile_config = config["training"]["profiles"][profile]
     seed_everything(seed)
-    torch.use_deterministic_algorithms(True, warn_only=True)
+    torch.use_deterministic_algorithms(True)
     model = YeastStudyModel(model_config_from_study(config)).to(device)
     batch_size = int(profile_config["batch_size"])
     workers = int(profile_config["num_workers"])

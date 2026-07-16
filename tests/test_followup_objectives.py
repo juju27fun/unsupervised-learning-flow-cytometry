@@ -39,6 +39,15 @@ def test_spectral_loss_rejects_incompatible_window() -> None:
         multi_resolution_spectral_loss(values, values, torch.ones_like(values, dtype=torch.bool))
 
 
+def test_spectral_loss_uses_uncentered_stft_without_reflection_padding() -> None:
+    values = torch.randn(2, 1, 1024, requires_grad=True)
+    mask = torch.ones_like(values, dtype=torch.bool)
+    loss, terms = multi_resolution_spectral_loss(values, values.detach(), mask, center=False)
+    loss.backward()
+    assert set(terms) == {"stft_128", "stft_256", "stft_512"}
+    assert torch.isfinite(values.grad).all()
+
+
 def test_vicreg_rejects_single_latent_batch() -> None:
     with pytest.raises(ValueError, match="independent"):
         vicreg_pair_loss(torch.ones(1, 2, 4))

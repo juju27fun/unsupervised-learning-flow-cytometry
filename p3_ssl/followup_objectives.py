@@ -15,6 +15,7 @@ VALID_FOLLOWUP_CELLS = frozenset({"R0", "R1", "R2", "R3"})
 class FollowupObjectiveConfig:
     spectral_windows: tuple[int, ...] = (128, 256, 512)
     spectral_hop_divisor: int = 4
+    spectral_center: bool = False
     spectral_epsilon: float = 1.0e-6
     time_weight: float = 1.0
     spectral_weight: float = 0.20
@@ -33,6 +34,7 @@ def multi_resolution_spectral_loss(
     *,
     windows: tuple[int, ...] = (128, 256, 512),
     hop_divisor: int = 4,
+    center: bool = False,
     epsilon: float = 1.0e-6,
 ) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
     if prediction.shape != target.shape:
@@ -60,7 +62,7 @@ def multi_resolution_spectral_loss(
             "hop_length": window_length // hop_divisor,
             "win_length": window_length,
             "window": window,
-            "center": True,
+            "center": center,
             "return_complex": True,
         }
         pred_stft = torch.stft(pred_masked[:, 0], **kwargs)
@@ -132,6 +134,7 @@ def followup_ssl_objective(
             mask,
             windows=config.spectral_windows,
             hop_divisor=config.spectral_hop_divisor,
+            center=config.spectral_center,
             epsilon=config.spectral_epsilon,
         )
         total = total + config.spectral_weight * spectral

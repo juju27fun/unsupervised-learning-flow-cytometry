@@ -72,6 +72,7 @@ def main() -> None:
     objective_cfg = FollowupObjectiveConfig(
         spectral_windows=tuple(spectral["windows_samples"]),
         spectral_hop_divisor=4,
+        spectral_center=bool(spectral.get("center", False)),
         spectral_epsilon=float(spectral["epsilon"]),
         time_weight=float(config["objectives"]["time_weight"]),
         spectral_weight=float(spectral["weight"]),

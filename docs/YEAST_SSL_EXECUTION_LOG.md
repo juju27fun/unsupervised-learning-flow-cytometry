@@ -31,8 +31,12 @@ manuscript.
 - Hierarchical paired uncertainty and promotion decisions were also made
   executable before training. The scientific R0-R3 loss cells, architecture,
   data, budgets, seeds, and final-split prohibitions are unchanged.
-- Local focused tests pass. pfcalcul CUDA smoke remains pending; no Week 2
-  training result has been inspected at this point.
+- Local focused tests and the real-data CPU smoke pass. The first pfcalcul CUDA
+  runtime smoke completed all cells but exposed non-deterministic memory-efficient
+  attention and reflected-STFT padding kernels. It is retained as invalid runtime
+  evidence only. Before full training, strict deterministic algorithms and an
+  uncentered STFT without reflection padding were frozen; a corrective CUDA
+  smoke is required. No outcome metric informed this correction.
 
 ## Current Gate State
 

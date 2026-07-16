@@ -126,6 +126,7 @@ def test_week2_config_preserves_frozen_cells_and_seeds() -> None:
     assert config["study"]["pre_training_addendum"]["outcome_data_seen"] is False
     assert config["training"]["representation_seeds"] == [42, 43, 44]
     assert config["training"]["checkpoint_selection"] == "fixed_final_epoch_no_early_stopping"
+    assert config["objectives"]["spectral"]["center"] is False
 
 
 def test_followup_contract_never_reads_sealed_metadata(tmp_path: Path) -> None:

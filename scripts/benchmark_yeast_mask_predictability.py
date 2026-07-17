@@ -18,6 +18,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from p3_ssl.predictability import (
+    autoregressive_prediction,
     harmonic_regression_prediction,
     interpolation_prediction,
     masked_mse_numpy,
@@ -28,7 +29,7 @@ from p3_ssl.predictability import (
 from p3_ssl.study_data import RealEventDataset, SimulatedLatentDataset
 
 
-BASELINES = ("visible_mean", "interpolation", "nearest", "harmonic")
+BASELINES = ("visible_mean", "interpolation", "nearest", "autoregressive", "harmonic")
 
 
 def _revision(path: Path) -> str:
@@ -139,6 +140,7 @@ def _plot(path: Path, summaries: list[dict[str, object]]) -> None:
         "visible_mean": "#8c8c8c",
         "interpolation": "#0077b6",
         "nearest": "#d1495b",
+        "autoregressive": "#e9c46a",
         "harmonic": "#2a9d8f",
     }
     fig, axes = plt.subplots(2, 3, figsize=(15, 8), sharex=True, sharey=True)
@@ -217,6 +219,7 @@ def main() -> None:
                         "visible_mean": visible_mean_prediction(signal, target),
                         "interpolation": interpolation_prediction(signal, target),
                         "nearest": nearest_prediction(signal, target),
+                        "autoregressive": autoregressive_prediction(signal, target),
                         "harmonic": harmonic_regression_prediction(
                             signal, target, sampling_frequency_hz=1_000_000.0
                         ),

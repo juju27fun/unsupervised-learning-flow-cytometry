@@ -114,6 +114,22 @@ def main() -> None:
         source_runs[policy] = str(run_dir)
     rows.sort(key=lambda row: list(config["training"]["candidate_policies"]).index(row["policy"]))
     eligible = [str(row["policy"]) for row in rows if row["eligible_for_utility_evaluation"]]
+    pretext_candidates = [
+        row
+        for row in rows
+        if row["gates"]["beats_zero"] and row["gates"]["nontrivial_amplitude"]
+    ]
+    anti_collapse_policy = (
+        str(max(pretext_candidates, key=lambda row: row["relative_improvement_vs_zero"])["policy"])
+        if pretext_candidates and not eligible
+        else None
+    )
+    if eligible:
+        decision = "run_development_utility_evaluation"
+    elif anti_collapse_policy is not None:
+        decision = "run_preregistered_anti_collapse_contrast"
+    else:
+        decision = "run_preregistered_phase_invariant_target_contrast"
 
     args.output_dir.mkdir(parents=True)
     csv_path = args.output_dir / "comparison.csv"
@@ -132,9 +148,9 @@ def main() -> None:
         "source_runs": source_runs,
         "rows": rows,
         "eligible_for_utility_evaluation": eligible,
-        "decision": (
-            "run_development_utility_evaluation" if eligible else "reject_all_mask_only_candidates"
-        ),
+        "pretext_pass_policies": [str(row["policy"]) for row in pretext_candidates],
+        "anti_collapse_policy": anti_collapse_policy,
+        "decision": decision,
     }
     metrics_path = args.output_dir / "metrics.json"
     metrics_path.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")

@@ -77,6 +77,83 @@ def nearest_prediction(signal: np.ndarray, mask: np.ndarray) -> np.ndarray:
     return prediction
 
 
+def _fit_autoregressive_coefficients(
+    signal: np.ndarray,
+    mask: np.ndarray,
+    order: int,
+    ridge: float,
+) -> np.ndarray | None:
+    rows = []
+    targets = []
+    for index in range(order, signal.size):
+        if mask[index] or np.any(mask[index - order : index]):
+            continue
+        rows.append(signal[index - order : index][::-1])
+        targets.append(signal[index])
+    if len(rows) < max(order + 1, 32):
+        return None
+    design = np.asarray(rows, dtype=np.float64)
+    response = np.asarray(targets, dtype=np.float64)
+    design = np.column_stack([design, np.ones(len(design))])
+    gram = design.T @ design
+    scale = float(np.trace(gram[:-1, :-1])) / max(order, 1)
+    regularizer = np.eye(order + 1, dtype=np.float64) * ridge * max(scale, 1.0e-12)
+    regularizer[-1, -1] = 0.0
+    return np.linalg.solve(gram + regularizer, design.T @ response)
+
+
+def _autoregressive_forward(
+    signal: np.ndarray,
+    mask: np.ndarray,
+    order: int,
+    ridge: float,
+) -> np.ndarray:
+    coefficients = _fit_autoregressive_coefficients(signal, mask, order, ridge)
+    prediction = signal.copy()
+    if coefficients is None:
+        prediction[mask] = 0.0
+        return prediction
+    visible_std = float(np.std(signal[~mask])) if np.any(~mask) else 0.0
+    limit = max(5.0 * visible_std, 1.0e-6)
+    for index in np.flatnonzero(mask):
+        if index < order:
+            prediction[index] = 0.0
+            continue
+        history = prediction[index - order : index][::-1]
+        value = float(history @ coefficients[:-1] + coefficients[-1])
+        prediction[index] = float(np.clip(value, -limit, limit))
+    return prediction
+
+
+def autoregressive_prediction(
+    signal: np.ndarray,
+    mask: np.ndarray,
+    *,
+    order: int = 64,
+    ridge: float = 1.0e-3,
+) -> np.ndarray:
+    """Fill gaps with blended forward and backward ridge autoregression."""
+    signal = np.asarray(signal, dtype=np.float64)
+    mask = np.asarray(mask, dtype=bool)
+    if signal.ndim != 1 or mask.shape != signal.shape:
+        raise ValueError("signal and mask must be matching one-dimensional arrays")
+    if order <= 0 or order >= signal.size or ridge < 0.0:
+        raise ValueError("invalid autoregressive configuration")
+    forward = _autoregressive_forward(signal, mask, order, ridge)
+    backward = _autoregressive_forward(signal[::-1], mask[::-1], order, ridge)[::-1]
+    prediction = signal.copy()
+    masked_indices = np.flatnonzero(mask)
+    split_points = np.flatnonzero(np.diff(masked_indices) > 1) + 1
+    for gap in np.split(masked_indices, split_points):
+        if gap.size == 0:
+            continue
+        backward_weight = (np.arange(gap.size, dtype=np.float64) + 1.0) / (gap.size + 1.0)
+        prediction[gap] = (
+            (1.0 - backward_weight) * forward[gap] + backward_weight * backward[gap]
+        )
+    return prediction
+
+
 def harmonic_regression_prediction(
     signal: np.ndarray,
     mask: np.ndarray,

@@ -25,6 +25,7 @@ from p3_ssl.masking import (
     mask_coherence_summary,
 )
 from p3_ssl.predictability import (
+    autoregressive_prediction,
     harmonic_regression_prediction,
     interpolation_prediction,
     masked_mse_numpy,
@@ -34,7 +35,7 @@ from p3_ssl.predictability import (
 from p3_ssl.study_data import RealEventDataset
 
 
-BASELINES = ("visible_mean", "interpolation", "nearest", "harmonic")
+BASELINES = ("visible_mean", "interpolation", "nearest", "autoregressive", "harmonic")
 
 
 def _revision(path: Path) -> str:
@@ -95,12 +96,12 @@ def _summarize(rows: list[dict[str, object]], policies: list[str]) -> list[dict[
 def _plot(path: Path, summaries: list[dict[str, object]]) -> None:
     policies = [str(row["policy"]) for row in summaries]
     positions = np.arange(len(policies))
-    width = 0.18
-    colors = ("#8c8c8c", "#0077b6", "#d1495b", "#2a9d8f")
+    width = 0.16
+    colors = ("#8c8c8c", "#0077b6", "#d1495b", "#e9c46a", "#2a9d8f")
     fig, axes = plt.subplots(1, 2, figsize=(12, 4.5))
     for index, (baseline, color) in enumerate(zip(BASELINES, colors)):
         axes[0].bar(
-            positions + (index - 1.5) * width,
+            positions + (index - (len(BASELINES) - 1) / 2.0) * width,
             [float(row[f"{baseline}_relative_improvement_vs_zero"]) for row in summaries],
             width,
             color=color,
@@ -216,6 +217,7 @@ def main() -> None:
                 "visible_mean": visible_mean_prediction(signal, hidden),
                 "interpolation": interpolation_prediction(signal, hidden),
                 "nearest": nearest_prediction(signal, hidden),
+                "autoregressive": autoregressive_prediction(signal, hidden),
                 "harmonic": harmonic_regression_prediction(
                     signal, hidden, sampling_frequency_hz=1_000_000.0
                 ),

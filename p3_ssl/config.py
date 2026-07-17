@@ -157,3 +157,18 @@ def validate_mask_ablation_config(config: dict[str, Any]) -> None:
         raise ValueError("Only patch-aligned policies may enter candidate training")
     if candidates & diagnostics or candidates | diagnostics != expected:
         raise ValueError("Candidate and diagnostic mask policies must partition all policies")
+    next_stage = config.get("conditional_next_stage", {})
+    if next_stage.get("frozen_before_seed42_outcomes") is not True:
+        raise ValueError("Conditional next-stage branches must be frozen before seed-42 outcomes")
+    collapse_branch = next_stage.get("branch_pretext_pass_geometry_fail", {})
+    if collapse_branch.get("cells") != {
+        "C0": {"time_reconstruction": True, "vicreg": False},
+        "C1": {"time_reconstruction": True, "vicreg": True},
+    }:
+        raise ValueError("The anti-collapse branch must contain only the paired C0/C1 contrast")
+    if float(collapse_branch.get("vicreg_global_weight", -1.0)) != 1.0:
+        raise ValueError("The conditional anti-collapse weight must remain frozen at 1.0")
+    if next_stage.get("multiseed_authorization", {}).get("required_before_seeds_43_44") != (
+        "pretext_geometry_and_development_utility_pass_at_seed_42"
+    ):
+        raise ValueError("Additional mask-ablation seeds require all seed-42 gates")

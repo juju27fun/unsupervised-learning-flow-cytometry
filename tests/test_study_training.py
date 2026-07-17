@@ -47,6 +47,18 @@ def test_mask_ablation_is_controlled_and_predeclared() -> None:
     assert config["policies"]["SE10"]["event_biased_probability"] == 0.75
     assert config["policies"]["P25"]["strategy"] == "patch_aligned_isolated"
     assert config["policies"]["PE10"]["minimum_visible_tokens_between_masks"] == 1
+    assert (
+        config["conditional_next_stage"]["branch_pretext_pass_geometry_fail"][
+            "vicreg_global_weight"
+        ]
+        == 1.0
+    )
+    assert config["conditional_next_stage"]["branch_pretext_fail"]["requirements"] == [
+        "target_must_be_phase_invariant",
+        "target_must_not_be_computed_from_zero_padded_mask_edges",
+        "zero_and_constant_feature_baselines_required",
+        "one_example_and_one_batch_overfit_required",
+    ]
 
 
 def test_mask_batch_has_256_tokens_and_trivial_controls() -> None:

@@ -128,3 +128,36 @@ promotion_gates:
   utility:
     require_improvement_over_random_or_raw_baseline: true
   decision_policy: no_full_matrix_before_local_smoke_and_single_seed_development_gate
+
+conditional_next_stage:
+  frozen_before_seed42_outcomes: true
+  branch_all_gates_pass:
+    action: run_development_only_utility_evaluation
+    selection: all_candidates_passing_pretext_and_geometry
+    additional_training: false
+  branch_pretext_pass_geometry_fail:
+    action: test_anti_collapse_on_one_frozen_mask_policy
+    mask_policy_selection: highest_relative_improvement_vs_zero_among_nontrivial_amplitude_candidates
+    cells:
+      C0: {time_reconstruction: true, vicreg: false}
+      C1: {time_reconstruction: true, vicreg: true}
+    vicreg_global_weight: 1.0
+    rationale: historical_weight_0p10_contributed_only_about_1_to_2_percent_of_real_total_loss
+    architecture_change_allowed: false
+    first_stage_seed: 42
+  branch_pretext_fail:
+    action: replace_pointwise_waveform_target
+    candidates:
+      - masked_multiscale_envelope_and_energy_prediction
+      - masked_local_log_power_spectrum_prediction
+    requirements:
+      - target_must_be_phase_invariant
+      - target_must_not_be_computed_from_zero_padded_mask_edges
+      - zero_and_constant_feature_baselines_required
+      - one_example_and_one_batch_overfit_required
+    architecture_policy: retain_encoder_and_add_only_a_pretext_decoder_head
+    first_stage_seed: 42
+  branch_utility_fail:
+    action: reject_mask_only_rescue_and_do_not_run_additional_seeds
+  multiseed_authorization:
+    required_before_seeds_43_44: pretext_geometry_and_development_utility_pass_at_seed_42

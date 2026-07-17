@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 
 from p3_ssl.predictability import (
+    autoregressive_prediction,
     harmonic_regression_prediction,
     masked_mse_numpy,
     sample_region_block_mask,
@@ -52,6 +53,17 @@ def test_harmonic_regression_handles_multiple_gaps() -> None:
         frequency_bins=251,
     )
     assert masked_mse_numpy(prediction, signal, mask) < 1e-10
+
+
+def test_autoregressive_baseline_recovers_known_sinusoidal_gaps() -> None:
+    index = np.arange(2048)
+    signal = np.sin(2.0 * np.pi * 0.02 * index + 0.4)
+    mask = np.zeros(signal.size, dtype=bool)
+    mask[500:516] = True
+    mask[1500:1516] = True
+    prediction = autoregressive_prediction(signal, mask, order=32, ridge=1.0e-6)
+    zero_mse = masked_mse_numpy(np.zeros_like(signal), signal, mask)
+    assert masked_mse_numpy(prediction, signal, mask) < zero_mse * 1e-4
 
 
 def test_region_block_mask_rejects_unknown_mode() -> None:

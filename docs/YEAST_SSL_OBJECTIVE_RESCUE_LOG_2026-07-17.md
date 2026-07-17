@@ -80,6 +80,10 @@ guard hid 74% of the trace at a nominal 25% target ratio and 40% at a nominal
 
 P/PE policies hide isolated complete 16-sample patches with at least one visible
 token between targets. PE policies bias selection toward labeled event regions.
+A later bidirectional ridge-autoregressive control independently confirmed the
+result: it beat zero on every signal for all P/PE policies, with relative MSE
+improvements of `0.50-0.72`, while it did not improve the frozen L0 policy.
+This result is stored in `yeast-mask-policy-predictability-v3`.
 
 ## 5. Training decision
 
@@ -98,3 +102,22 @@ Generate the gate report before any downstream evaluation or additional seed.
 If every candidate still collapses, retain the corrected mask and move to a
 phase-invariant target or explicit anti-collapse objective rather than tuning
 the Transformer.
+
+## 6. Conditional branches frozen before seed-42 results
+
+The exact branch policy is stored in
+`configs/yeast_ssl_mask_ablation_v1.yaml`:
+
+1. If reconstruction, amplitude, and geometry all pass, run development-only
+   utility evaluation without more training.
+2. If reconstruction passes but geometry fails, select the mask policy with the
+   largest zero-baseline improvement among nontrivial-amplitude candidates and
+   compare time-only C0 with time plus VICReg C1. The VICReg global weight is
+   fixed at `1.0`; the historical `0.10` term contributed only about 1-2% of
+   the real objective and produced only a modest rank increase.
+3. If reconstruction still fails, replace pointwise waveform prediction with a
+   phase-invariant envelope/energy or local log-power target. Do not reuse the
+   historical STFT implementation, which computes spectra after multiplying by
+   a sparse time mask and therefore measures mask-edge artifacts.
+4. If development utility fails, reject the mask-only rescue. Seeds 43 and 44
+   are authorized only after seed 42 passes pretext, geometry, and utility.

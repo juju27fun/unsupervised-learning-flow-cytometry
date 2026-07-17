@@ -1,0 +1,26 @@
+study:
+  protocol: yeast-ssl-collapse-utility-supplement-v1-20260717
+  source_protocol: yeast-ssl-collapse-utility-v1-20260717
+  dataset: yeast-events-development@v1
+  dataset_manifest_sha256: 42101c3e12dd15a0c11e26e7f4d337aae7977e1c9fd503b78583ecce4823a1de
+  endpoint_scope: post_selection_single_acquisition_source_group_proxy_descriptive
+  sealed_splits_allowed: false
+
+methods:
+  handcrafted_signal:
+    description: signal-only time, distribution, Fourier-band, and envelope features
+  handcrafted_full:
+    description: signal features plus detector width and quality diagnostics
+  handcrafted_full_plus_C1:
+    description: concatenated full handcrafted and frozen C1 embedding
+
+evaluation:
+  label_fractions: [0.01, 0.05, 0.10, 0.25, 1.00]
+  probe_seeds: [42, 43, 44]
+  primary_fraction: 0.10
+  grouped_bootstrap_repeats: 1000
+  paired_interval_level: 0.95
+  required_blocks_per_class: 5
+  minimum_complementarity_gain: 0.03
+  logistic_regularization_c: 1.0
+  note: post-hoc baseline completion frozen before handcrafted outcomes were computed

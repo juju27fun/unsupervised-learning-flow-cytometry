@@ -192,3 +192,52 @@ constant, and feature-of-interpolation baselines, output/target RMS at least
 0.10, effective rank at least 8, and mean pairwise cosine at most 0.95. Event
 and background errors are reported separately. Utility and additional seeds
 remain forbidden until the complete seed-42 gate sequence passes.
+
+## 9. Full C1 development utility result
+
+Pfcalcul job `20260717_yeast_collapse_utility_full_v2` completed with return
+code 0 and reused the complete artifact produced during the interrupted-status
+first attempt. The retrieved and manifest-validated artifact is
+`artifacts/unsupervised-learning-flow-cytometry/runs/yeast-collapse-utility-full-s42-v1`.
+No sealed split was opened, and all 75 logistic probes converged.
+
+At the frozen 10% label endpoint, averaged over probe seeds 42, 43, and 44:
+
+| Method | Macro-F1 | C1 minus method | Descriptive block interval |
+|---|---:|---:|---:|
+| C1 | 0.294 | - | - |
+| C0 | 0.310 | -0.016 | `[-0.036, +0.013]` |
+| Random encoder | 0.301 | -0.007 | `[-0.027, +0.017]` |
+| Raw signal | 0.259 | +0.035 | `[-0.013, +0.080]` |
+| Train-only PCA96 | 0.237 | +0.057 | `[+0.022, +0.090]` |
+
+C1 retains the intended geometry on all development events (effective rank
+`9.81`, cosine `0.935`) and beats raw and PCA point estimates. It nevertheless
+fails the frozen utility gate because it does not beat either the matched C0
+control or the random encoder at the primary endpoint. Seeds 43 and 44 are not
+authorized for the mask-only representation.
+
+An independent post-run audit confirmed row alignment, disjoint train and
+validation records/blocks, train-only PCA fitting, matched probe subsets, and
+probe convergence. It also found that the nominal interval is not
+confirmatory: validation contains only 20 class-pure capture blocks, distributed
+as 12 `mix`, 4 `shmoo2`, 3 `budding`, and 1 `shmoo`. The result is therefore a
+post-selection, single-acquisition proxy diagnostic. It supports rejecting
+mask-only C1 but cannot estimate independent `shmoo` variability or establish
+morphology generalization.
+
+The original utility gate omitted the known handcrafted baseline. A separate
+post-hoc supplement is frozen in
+`configs/yeast_ssl_collapse_utility_supplement_v1.yaml` before computing those
+features. It compares C1 with signal-only handcrafted features, full
+handcrafted detector diagnostics, and their fusion. It cannot reverse the
+mask-only rejection; its purpose is to complete the baseline and
+complementarity record.
+
+If that supplement does not reveal a practical fusion gain, the one remaining
+objective experiment is real-only and phase-invariant. It must preserve the C1
+PE25 masking, VICReg weight 1.0, architecture, optimizer, and data order so that
+only the prediction target changes. Simulation-assisted training remains
+ineligible because both simulator versions failed common-support gates. The
+historical masked-zero STFT loss also remains ineligible because mask edges
+contaminate its spectra.

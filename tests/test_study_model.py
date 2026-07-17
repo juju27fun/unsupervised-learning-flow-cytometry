@@ -34,3 +34,28 @@ def test_consistency_is_zero_for_equal_views() -> None:
     embeddings = torch.randn(3, 8)
     paired = torch.stack([embeddings, embeddings], dim=1)
     assert float(paired_nuisance_consistency(paired)) < 1.0e-6
+
+
+def test_local_spectral_head_preserves_encoder_initialization() -> None:
+    common = {
+        "d_model": 32,
+        "n_heads": 4,
+        "n_layers": 1,
+        "dim_feedforward": 64,
+        "dropout": 0.0,
+    }
+    torch.manual_seed(42)
+    control = YeastStudyModel(YeastStudyModelConfig(**common))
+    torch.manual_seed(42)
+    treatment = YeastStudyModel(
+        YeastStudyModelConfig(**common, local_spectral_features=24)
+    )
+    control_state = control.reconstructor.encoder_state_dict()
+    treatment_state = treatment.reconstructor.encoder_state_dict()
+    assert control_state.keys() == treatment_state.keys()
+    assert all(torch.equal(control_state[key], treatment_state[key]) for key in control_state)
+    output = treatment.forward_local_spectral(
+        torch.randn(2, 1, 4096), torch.zeros(2, 256, dtype=torch.bool)
+    )
+    assert output["embedding"].shape == (2, 32)
+    assert output["local_spectral_prediction"].shape == (2, 256, 24)

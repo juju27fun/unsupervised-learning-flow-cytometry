@@ -285,3 +285,31 @@ interpolation; output/target RMS must be at least 0.10; rank must be at least 8;
 and cosine must be at most 0.95. Event, background, and event-boundary frames
 are reported separately. Failure of any sequential gate ends objective rescue
 without simulation, another target sweep, or a sealed split.
+
+## 11. S1 target predictability preflight
+
+Artifact:
+`artifacts/unsupervised-learning-flow-cytometry/audits/yeast-local-spectral-predictability-v1`.
+
+The exact target implementation passes shape, finite-value, frequency, phase,
+and mask-independence tests. On 256 development-validation events, using PE25
+masks, masked-feature MSE is:
+
+| Baseline | MSE |
+|---|---:|
+| Zero | 0.4502 |
+| Train-derived per-position constant | 0.2408 |
+| Feature of linearly interpolated waveform | 0.0266 |
+
+Phase-rotation relative target error is `1.1e-14`. Interpolation remains the
+strong control: its error is `0.0466` in fully event-contained frames and about
+`0.0174` in background or boundary frames. This is expected because each
+256-sample spectral window contains mostly visible samples under isolated
+PE25. It does not invalidate the target, but S1 training must beat this control
+to demonstrate learned prediction rather than visible-context bookkeeping.
+
+The preflight decision is `run_fixed_batch_overfit`. The next gate uses the
+production encoder and a new 24-output token head whose initialization occurs
+after the unchanged C1 encoder. It must preserve a byte-identical initial
+encoder state and memorize both one and eight fixed real targets by at least
+80% relative to the stronger zero/train-constant baseline before any full run.

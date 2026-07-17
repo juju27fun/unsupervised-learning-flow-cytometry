@@ -14,6 +14,9 @@ study:
   source_supplement_run: yeast-collapse-utility-supplement-v1
   source_supplement_run_json_sha256: 9b4111fcfebf7ba37aa1d9e8f2fe28def09b068f9f0c1efc9d764cf6ebd9141b
   source_supplement_metrics_sha256: 7f994e3927230fbdb09cf86a4a85b9e68966118c5a46af49196b901377d69a7d
+  source_predictability_run: yeast-local-spectral-predictability-v1
+  source_predictability_run_json_sha256: 490856f83fb18e945a2e16d1257e9f333b2903d41203a832b5095cc5802bfdee
+  source_predictability_metrics_sha256: 3ad017b8c8f00eb14fc21cd44a5ee96c93c1082fcd7865f7ca1e19948e9b5a4e
   sealed_splits_allowed: false
 
 target:

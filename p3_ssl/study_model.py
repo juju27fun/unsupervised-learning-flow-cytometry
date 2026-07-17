@@ -22,6 +22,7 @@ class YeastStudyModelConfig:
     dropout: float = 0.10
     activation: str = "gelu"
     max_tokens: int = 256
+    local_spectral_features: int = 0
 
 
 class YeastStudyModel(nn.Module):
@@ -52,6 +53,14 @@ class YeastStudyModel(nn.Module):
             nn.LayerNorm(config.d_model),
             nn.Linear(config.d_model, 2),
         )
+        self.local_spectral_head = (
+            nn.Sequential(
+                nn.LayerNorm(config.d_model),
+                nn.Linear(config.d_model, config.local_spectral_features),
+            )
+            if config.local_spectral_features > 0
+            else None
+        )
 
     def forward(self, signals: torch.Tensor, token_mask: torch.Tensor | None = None) -> dict[str, torch.Tensor]:
         encoded = self.reconstructor.encode(signals, token_mask=token_mask)
@@ -63,6 +72,19 @@ class YeastStudyModel(nn.Module):
             "embedding": embedding,
             "continuous": self.continuous_head(embedding),
             "component_logits": self.component_head(embedding),
+        }
+
+    def forward_local_spectral(
+        self,
+        signals: torch.Tensor,
+        token_mask: torch.Tensor,
+    ) -> dict[str, torch.Tensor]:
+        if self.local_spectral_head is None:
+            raise RuntimeError("The model was not configured with a local spectral head")
+        encoded = self.reconstructor.encode(signals, token_mask=token_mask)
+        return {
+            "embedding": encoded.mean(dim=1),
+            "local_spectral_prediction": self.local_spectral_head(encoded),
         }
 
 

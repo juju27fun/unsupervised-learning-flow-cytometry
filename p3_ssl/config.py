@@ -215,3 +215,47 @@ def validate_mask_collapse_config(config: dict[str, Any]) -> None:
         "requires_seed42_pretext_geometry_and_development_utility_pass"
     ):
         raise ValueError("C0/C1 cannot directly authorize additional seeds")
+
+
+def validate_collapse_utility_config(config: dict[str, Any]) -> None:
+    study = config.get("study", {})
+    if study.get("sealed_splits_allowed") is not False:
+        raise ValueError("Collapse utility must remain development-only")
+    if study.get("real_dataset") != "yeast-events-development@v1":
+        raise ValueError("Collapse utility requires the physically development-only dataset")
+    if study.get("real_manifest_sha256") != (
+        "42101c3e12dd15a0c11e26e7f4d337aae7977e1c9fd503b78583ecce4823a1de"
+    ):
+        raise ValueError("Collapse utility dataset manifest changed")
+    methods = config.get("methods", {})
+    if list(methods) != ["C1", "C0", "random", "raw", "pca96"]:
+        raise ValueError("Collapse utility methods and order are frozen")
+    pca = methods["pca96"]
+    if pca != {
+        "components": 96,
+        "fit_split": "development_train",
+        "svd_solver": "randomized",
+        "random_state": 42,
+        "whiten": False,
+    }:
+        raise ValueError("PCA-96 definition changed")
+    primary = config.get("primary_gate", {})
+    if primary != {
+        "label_fraction": 0.1,
+        "metric": "macro_f1",
+        "minimum_gain": 0.03,
+        "paired_interval_level": 0.95,
+        "require_interval_lower_above_zero": True,
+        "require_positive_gain_vs_each_baseline": True,
+        "group_unit": "capture_block_id_fallback_record_id",
+        "success_action": "authorize_representation_seeds_43_44",
+        "failure_action": "reject_mask_only_rescue",
+    }:
+        raise ValueError("Collapse utility primary gate changed")
+    full = config.get("profiles", {}).get("full", {})
+    if full.get("label_fractions") != [0.01, 0.05, 0.1, 0.25, 1.0]:
+        raise ValueError("Full utility label fractions changed")
+    if full.get("probe_seeds") != [42, 43, 44]:
+        raise ValueError("Full utility probe seeds changed")
+    if int(full.get("grouped_bootstrap_repeats", 0)) != 1000:
+        raise ValueError("Full utility requires 1000 paired bootstrap repeats")

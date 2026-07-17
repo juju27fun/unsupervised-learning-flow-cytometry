@@ -157,3 +157,38 @@ has nontrivial output amplitude, reaches both absolute geometry thresholds,
 and improves rank and cosine relative to C0. Otherwise the next action is the
 already declared phase-invariant target contrast. No outcome from this stage
 alone authorizes seeds 43 or 44 or opens a sealed split.
+
+## 8. Conditional next-stage designs frozen while C0/C1 runs
+
+The two downstream designs were audited before C0/C1 completed. They remain
+conditional and must not be run together.
+
+If C1 passes every gate, the primary development-utility endpoint is macro-F1
+at 10% labels, averaged over probe seeds 42, 43, and 44. C1 is compared with
+C0, a seed-42 untrained encoder, raw-signal features, and a 96-component PCA
+fit without labels on `development_train` only. The primary comparator is the
+strongest of these frozen eligible baselines. A utility pass requires a macro-F1
+gain of at least 0.03 and a capture-block paired 95% interval with lower bound
+above zero; C1 must also have positive point estimates versus raw, random, and
+PCA individually. Label fractions 1%, 5%, 25%, and 100%, retrieval, robustness,
+and calibration remain secondary. This is exploratory single-acquisition
+source-group proxy evidence, not confirmatory morphology evidence. The loader
+must use physically development-only metadata rather than reading a combined
+metadata file before filtering.
+
+If C1 fails, train one F1 target at seed 42 with the same PE25 masks, encoder,
+optimizer, epochs, and data order as C0. F1 predicts 14 phase-invariant features
+per hidden 16-sample token: relative analytic envelope and relative analytic
+energy, each pooled into four 4-sample, two 8-sample, and one 16-sample bins,
+then transformed with `log1p`. Features are computed from the complete signal
+before any mask is applied. The first branch excludes wavelets and local
+log-power because they add unresolved resolution choices; it also excludes the
+historical sparse-mask STFT loss, which measures mask-edge spectra.
+
+F1 must satisfy phase-rotation relative target error at most 0.002, mask-target
+independence, at least 80% one- and eight-example overfit improvement over the
+better zero/constant baseline, held-out improvement over zero, train-derived
+constant, and feature-of-interpolation baselines, output/target RMS at least
+0.10, effective rank at least 8, and mean pairwise cosine at most 0.95. Event
+and background errors are reported separately. Utility and additional seeds
+remain forbidden until the complete seed-42 gate sequence passes.

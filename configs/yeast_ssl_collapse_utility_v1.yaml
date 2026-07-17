@@ -1,0 +1,51 @@
+study:
+  protocol: yeast-ssl-collapse-utility-v1-20260717
+  real_dataset: yeast-events-development@v1
+  real_manifest_sha256: 42101c3e12dd15a0c11e26e7f4d337aae7977e1c9fd503b78583ecce4823a1de
+  parent_real_dataset: yeast-events-representation@v3
+  parent_manifest_sha256: 06ba5d041f4d5bf6e5574d134fee955fd9546d6a3e7532ae1d1456fee274fe5a
+  promotion_protocol: yeast-ssl-mask-collapse-v1-20260717
+  base_config: configs/yeast_ssl_rebuild_v1.yaml
+  endpoint_scope: single_acquisition_source_group_proxy_exploratory
+  sealed_splits_allowed: false
+
+methods:
+  C1: {kind: frozen_checkpoint, role: promoted_candidate}
+  C0: {kind: frozen_checkpoint, role: matched_time_only_control}
+  random: {kind: untrained_study_encoder, seed: 42}
+  raw: {kind: raw_4096_samples}
+  pca96:
+    components: 96
+    fit_split: development_train
+    svd_solver: randomized
+    random_state: 42
+    whiten: false
+
+profiles:
+  smoke:
+    max_events_per_class: 32
+    label_fractions: [0.10]
+    probe_seeds: [42]
+    grouped_bootstrap_repeats: 100
+    batch_size: 8
+  full:
+    max_events_per_class: null
+    label_fractions: [0.01, 0.05, 0.10, 0.25, 1.00]
+    probe_seeds: [42, 43, 44]
+    grouped_bootstrap_repeats: 1000
+    batch_size: 32
+
+evaluation:
+  calibration_bins: 10
+  retrieval_neighbors: 5
+
+primary_gate:
+  label_fraction: 0.10
+  metric: macro_f1
+  minimum_gain: 0.03
+  paired_interval_level: 0.95
+  require_interval_lower_above_zero: true
+  require_positive_gain_vs_each_baseline: true
+  group_unit: capture_block_id_fallback_record_id
+  success_action: authorize_representation_seeds_43_44
+  failure_action: reject_mask_only_rescue

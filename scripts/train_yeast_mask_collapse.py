@@ -31,6 +31,11 @@ def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def _repo_path(repo_root: Path, value: str | Path) -> Path:
+    path = Path(value)
+    return path if path.is_absolute() else repo_root / path
+
+
 def _code_tree_is_clean(repo_root: Path) -> bool:
     paths = (
         "p3_ssl",
@@ -107,7 +112,7 @@ def main() -> None:
 
     collapse = load_config(args.config)
     validate_mask_collapse_config(collapse)
-    source_path = Path(collapse["study"]["source_mask_ablation_config"])
+    source_path = _repo_path(repo_root, collapse["study"]["source_mask_ablation_config"])
     ablation = load_config(source_path)
     validate_mask_ablation_config(ablation)
     if args.seed != int(collapse["training"]["first_stage_seed"]):
@@ -120,7 +125,7 @@ def main() -> None:
         seed=args.seed,
     )
 
-    base_path = Path(collapse["study"]["base_config"])
+    base_path = _repo_path(repo_root, collapse["study"]["base_config"])
     config = copy.deepcopy(load_config(base_path))
     config["study"]["protocol"] = collapse["study"]["protocol"]
     config["training"]["seed"] = args.seed

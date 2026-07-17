@@ -121,3 +121,39 @@ The exact branch policy is stored in
    a sparse time mask and therefore measures mask-edge artifacts.
 4. If development utility fails, reject the mask-only rescue. Seeds 43 and 44
    are authorized only after seed 42 passes pretext, geometry, and utility.
+
+## 7. Full seed-42 mask matrix and anti-collapse handoff
+
+pfcalcul job `20260717_yeast_mask_ablation_dev_s42_v1` completed with return
+code 0. All four runs and the source report were retrieved and manifest
+validated. The provenance-hardened local decision report is
+`artifacts/unsupervised-learning-flow-cytometry/reports/yeast-mask-ablation-dev-s42-v3`.
+
+| Policy | Model MSE | Zero MSE | Interpolation MSE | Gain vs zero | Output/target RMS | Rank | Cosine |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| P25 | 0.156 | 1.258 | 0.270 | 0.876 | 0.943 | 3.65 | 0.99985 |
+| P10 | 0.953 | 1.398 | 0.293 | 0.318 | 0.523 | 2.28 | 0.99825 |
+| PE25 | 0.135 | 1.521 | 0.289 | 0.911 | 0.978 | 2.74 | 0.99982 |
+| PE10 | 0.259 | 2.350 | 0.413 | 0.890 | 0.933 | 2.06 | 0.99866 |
+
+Conclusion: corrected masking makes the SSL reconstruction objective learn.
+Every candidate beats zero with nontrivial amplitude, and PE25 also beats the
+strong interpolation control by 53%. However, every global embedding still
+fails both frozen geometry gates (`rank >= 8`, `cosine <= 0.95`). The central
+failure has therefore moved from waveform predictability to representation
+collapse. PE25 is selected by the frozen rule for the C0/C1 contrast.
+
+The next protocol is frozen separately in
+`configs/yeast_ssl_mask_collapse_v1.yaml`. C0 and C1 share initialization,
+first-view masks, data order, architecture, optimizer, epochs, and a drop-last
+training policy. C1 adds a second independently masked view and VICReg at
+global weight 1.0. The drop-last rule fixes a pre-run defect found by an
+independent audit: 7,009 training events leave a singleton batch that VICReg
+cannot evaluate. CPU smokes now complete for both cells with identical initial
+model hashes. These one-epoch smokes are execution checks, not results.
+
+C1 proceeds to development utility only if it beats zero and interpolation,
+has nontrivial output amplitude, reaches both absolute geometry thresholds,
+and improves rank and cosine relative to C0. Otherwise the next action is the
+already declared phase-invariant target contrast. No outcome from this stage
+alone authorizes seeds 43 or 44 or opens a sealed split.

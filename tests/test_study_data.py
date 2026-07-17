@@ -7,7 +7,12 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from p3_ssl.study_data import RealEventDataset, SimulatedLatentDataset, validate_study_dataset_contracts
+from p3_ssl.study_data import (
+    RealEventDataset,
+    SimulatedLatentDataset,
+    validate_real_event_dataset_contract,
+    validate_study_dataset_contracts,
+)
 
 
 def _write_csv(path: Path, rows: list[dict[str, object]]) -> None:
@@ -68,9 +73,11 @@ def test_registered_array_contract_loaders(tmp_path: Path) -> None:
     _write_csv(simulation / "simulation_metadata.csv", simulation_rows)
 
     contract = validate_study_dataset_contracts(real, simulation)
+    real_contract = validate_real_event_dataset_contract(real)
     real_dataset = RealEventDataset(real, "development_train")
     simulation_dataset = SimulatedLatentDataset(simulation, "train")
     assert contract["valid"] is True
+    assert real_contract["valid"] is True
     assert real_dataset[0]["signal"].shape == (1, 4096)
     assert int(real_dataset[0]["event_mask"].sum()) == 100
     assert simulation_dataset[0]["signals"].shape == (2, 1, 4096)

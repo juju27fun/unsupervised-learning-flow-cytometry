@@ -172,3 +172,46 @@ def validate_mask_ablation_config(config: dict[str, Any]) -> None:
         "pretext_geometry_and_development_utility_pass_at_seed_42"
     ):
         raise ValueError("Additional mask-ablation seeds require all seed-42 gates")
+
+
+def validate_mask_collapse_config(config: dict[str, Any]) -> None:
+    study = config.get("study", {})
+    if study.get("sealed_splits_allowed") is not False:
+        raise ValueError("The anti-collapse contrast is development-only")
+    training = config.get("training", {})
+    if training.get("cells") != {
+        "C0": {"time_reconstruction": True, "vicreg": False},
+        "C1": {"time_reconstruction": True, "vicreg": True},
+    }:
+        raise ValueError("The anti-collapse study must contain only C0 and C1")
+    if int(training.get("first_stage_seed", -1)) != 42:
+        raise ValueError("The anti-collapse first stage must remain frozen at seed 42")
+    if float(training.get("vicreg_global_weight", -1.0)) != 1.0:
+        raise ValueError("The anti-collapse VICReg weight must remain frozen at 1.0")
+    if training.get("drop_last_training_batch") is not True:
+        raise ValueError("C0/C1 must share the singleton-safe drop-last batch policy")
+    vicreg = training.get("vicreg", {})
+    if vicreg != {
+        "invariance_weight": 1.0,
+        "variance_weight": 1.0,
+        "covariance_weight": 0.04,
+        "variance_floor": 0.5,
+        "epsilon": 0.0001,
+        "second_view_seed_offset": 10000019,
+    }:
+        raise ValueError("VICReg coefficients or second-view seed offset changed")
+    gates = config.get("promotion_gates", {})
+    if gates.get("comparison") != {
+        "require_beats_interpolation": True,
+        "require_geometry_improvement_over_c0": True,
+    }:
+        raise ValueError("C1 must beat interpolation and improve geometry over C0")
+    decision = config.get("decision", {})
+    if decision.get("success_action") != "run_development_utility_evaluation":
+        raise ValueError("Successful C1 must proceed only to development utility")
+    if decision.get("failure_action") != "run_preregistered_phase_invariant_target_contrast":
+        raise ValueError("Failed C1 must trigger the phase-invariant target branch")
+    if decision.get("additional_seed_authorization") != (
+        "requires_seed42_pretext_geometry_and_development_utility_pass"
+    ):
+        raise ValueError("C0/C1 cannot directly authorize additional seeds")

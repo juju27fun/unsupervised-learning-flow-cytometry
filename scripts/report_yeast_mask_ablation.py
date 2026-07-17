@@ -37,6 +37,24 @@ def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def _require_clean_code(repo_root: Path) -> None:
+    paths = (
+        "p3_ssl/config.py",
+        "p3_ssl/mask_ablation_reporting.py",
+        "scripts/report_yeast_mask_ablation.py",
+        "configs/yeast_ssl_mask_ablation_v1.yaml",
+    )
+    status = subprocess.run(
+        ["git", "status", "--porcelain", "--", *paths],
+        cwd=repo_root,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+    if status.strip():
+        raise RuntimeError("Scientific mask reporting requires committed code and config")
+
+
 def _plot(path: Path, rows: list[dict[str, object]], config: dict[str, object]) -> None:
     policies = [str(row["policy"]) for row in rows]
     positions = np.arange(len(rows))
@@ -96,20 +114,60 @@ def main() -> None:
     args = parser.parse_args()
     if args.output_dir.exists():
         raise SystemExit(f"Output already exists: {args.output_dir}")
+    repo_root = Path(__file__).resolve().parents[1]
+    _require_clean_code(repo_root)
 
     config = load_config(args.config)
     validate_mask_ablation_config(config)
     expected = set(config["training"]["candidate_policies"])
     supplied = {policy for policy, _ in args.run}
-    if supplied != expected:
+    if supplied != expected or len(args.run) != len(expected):
         raise ValueError(f"Expected candidate runs {sorted(expected)}, received {sorted(supplied)}")
     rows = []
     source_runs = {}
+    source_contract = None
     for policy, run_dir in args.run:
         run_manifest = json.loads((run_dir / "run.json").read_text(encoding="utf-8"))
-        if run_manifest.get("status") != "complete" or run_manifest.get("mask_policy") != policy:
+        if (
+            run_manifest.get("status") != "complete"
+            or run_manifest.get("mask_policy") != policy
+            or run_manifest.get("protocol") != config["study"]["protocol"]
+            or run_manifest.get("profile") != "full"
+            or int(run_manifest.get("seed", -1)) != int(config["training"]["local_smoke_seed"])
+            or run_manifest.get("sealed_splits_used")
+        ):
             raise ValueError(f"Invalid completed run for {policy}: {run_dir}")
+        for output_name, expected_sha256 in run_manifest.get("outputs", {}).items():
+            output_path = run_dir / output_name
+            if not output_path.is_file() or _sha256(output_path) != expected_sha256:
+                raise ValueError(f"Source output checksum mismatch for {policy}: {output_name}")
         metrics = json.loads((run_dir / "metrics.json").read_text(encoding="utf-8"))
+        if (
+            metrics.get("cell") != "A1"
+            or metrics.get("profile") != "full"
+            or int(metrics.get("seed", -1)) != int(config["training"]["local_smoke_seed"])
+            or metrics.get("sealed_splits_used")
+        ):
+            raise ValueError(f"Source metrics mismatch for {policy}: {run_dir}")
+        for key, value in config["policies"][policy].items():
+            if metrics.get("masking", {}).get(key) != value:
+                raise ValueError(f"Source mask policy mismatch for {policy}.{key}")
+        candidate_contract = {
+            key: run_manifest.get(key)
+            for key in (
+                "dataset",
+                "repositories",
+                "config_sha256",
+                "base_config_sha256",
+                "protocol",
+                "profile",
+                "seed",
+            )
+        }
+        if source_contract is None:
+            source_contract = candidate_contract
+        elif candidate_contract != source_contract:
+            raise ValueError("Mask candidates do not share one training/provenance contract")
         rows.append(summarize_mask_ablation_run(policy, metrics, config["promotion_gates"]))
         source_runs[policy] = str(run_dir)
     rows.sort(key=lambda row: list(config["training"]["candidate_policies"]).index(row["policy"]))
@@ -146,6 +204,8 @@ def main() -> None:
         "protocol": config["study"]["protocol"],
         "sealed_splits_used": [],
         "source_runs": source_runs,
+        "source_training_contract": source_contract,
+        "decision_config_sha256": _sha256(args.config),
         "rows": rows,
         "eligible_for_utility_evaluation": eligible,
         "pretext_pass_policies": [str(row["policy"]) for row in pretext_candidates],
@@ -156,7 +216,6 @@ def main() -> None:
     metrics_path.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
     outputs = [csv_path, figure_path, metrics_path]
-    repo_root = Path(__file__).resolve().parents[1]
     run = {
         "schema_version": 1,
         "project": "unsupervised-learning-flow-cytometry",

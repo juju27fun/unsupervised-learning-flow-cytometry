@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from dataclasses import asdict
 from pathlib import Path
@@ -12,7 +13,7 @@ from torch.utils.data import DataLoader
 from .config import validate_study_config
 from .followup_objectives import vicreg_pair_loss
 from .losses import masked_mse
-from .study_data import RealEventDataset
+from .study_data import RealEventDataset, validate_real_event_dataset_contract
 from .study_model import YeastStudyModel
 from .study_training import (
     build_mask_batch,
@@ -26,6 +27,17 @@ from .study_training import (
 VALID_MASK_COLLAPSE_CELLS = frozenset({"C0", "C1"})
 
 
+def _state_sha256(model: torch.nn.Module) -> str:
+    digest = hashlib.sha256()
+    for name, tensor in model.state_dict().items():
+        values = tensor.detach().cpu().contiguous()
+        digest.update(name.encode("utf-8"))
+        digest.update(str(values.dtype).encode("ascii"))
+        digest.update(str(tuple(values.shape)).encode("ascii"))
+        digest.update(values.numpy().tobytes())
+    return digest.hexdigest()
+
+
 def mask_collapse_loss(
     model: YeastStudyModel,
     signals: torch.Tensor,
@@ -35,6 +47,7 @@ def mask_collapse_loss(
     cell: str,
     seed: int,
     vicreg_weight: float,
+    vicreg_config: dict[str, Any],
 ) -> tuple[torch.Tensor, dict[str, float]]:
     if cell not in VALID_MASK_COLLAPSE_CELLS:
         raise ValueError(f"Unknown mask-collapse cell: {cell}")
@@ -45,16 +58,16 @@ def mask_collapse_loss(
     metrics = {"time_reconstruction": float(time.detach().cpu()), "vicreg": 0.0}
     if cell == "C1":
         _, second_token_mask, _ = build_mask_batch(
-            signals, event_masks, config, seed + 10_000_019
+            signals, event_masks, config, seed + int(vicreg_config["second_view_seed_offset"])
         )
         second = model(signals, second_token_mask.to(signals.device))
         vicreg, terms = vicreg_pair_loss(
             torch.stack((first["embedding"], second["embedding"]), dim=1),
-            invariance_weight=1.0,
-            variance_weight=1.0,
-            covariance_weight=0.04,
-            variance_floor=0.50,
-            epsilon=1.0e-4,
+            invariance_weight=float(vicreg_config["invariance_weight"]),
+            variance_weight=float(vicreg_config["variance_weight"]),
+            covariance_weight=float(vicreg_config["covariance_weight"]),
+            variance_floor=float(vicreg_config["variance_floor"]),
+            epsilon=float(vicreg_config["epsilon"]),
         )
         total = total + vicreg_weight * vicreg
         metrics.update(
@@ -83,6 +96,8 @@ def train_mask_collapse_cell(
     profile: str,
     device: torch.device,
     vicreg_weight: float,
+    vicreg_config: dict[str, Any],
+    drop_last_training_batch: bool,
 ) -> dict[str, Any]:
     if cell not in VALID_MASK_COLLAPSE_CELLS:
         raise ValueError(f"Unknown mask-collapse cell: {cell}")
@@ -94,12 +109,16 @@ def train_mask_collapse_cell(
     if config["masking"].get("strategy") != "patch_aligned_isolated":
         raise ValueError("Mask-collapse training requires a patch-aligned policy")
 
+    contract = validate_real_event_dataset_contract(real_root)
+    if not contract["valid"]:
+        raise ValueError(f"Real dataset contract failed: {contract['errors']}")
     training = config["training"]
     profile_config = training["profiles"][profile]
     seed = int(training["seed"])
     seed_everything(seed)
     torch.use_deterministic_algorithms(True)
     model = YeastStudyModel(model_config_from_study(config)).to(device)
+    initial_model_sha256 = _state_sha256(model)
     maximum = profile_config.get("max_real_events")
     train_data = RealEventDataset(real_root, config["data"]["real_train_split"], max_events=maximum)
     validation_data = RealEventDataset(
@@ -114,6 +133,7 @@ def train_mask_collapse_cell(
         num_workers=int(profile_config["num_workers"]),
         generator=generator,
         pin_memory=device.type == "cuda",
+        drop_last=drop_last_training_batch,
     )
     validation_loader = DataLoader(validation_data, batch_size=batch_size, shuffle=False)
     optimizer = torch.optim.AdamW(
@@ -136,6 +156,7 @@ def train_mask_collapse_cell(
                 cell=cell,
                 seed=seed + epoch * 1_000_003 + batch_index,
                 vicreg_weight=vicreg_weight,
+                vicreg_config=vicreg_config,
             )
             optimizer.zero_grad(set_to_none=True)
             loss.backward()
@@ -172,6 +193,8 @@ def train_mask_collapse_cell(
             "profile": profile,
             "seed": seed,
             "vicreg_weight": vicreg_weight if cell == "C1" else 0.0,
+            "vicreg_config": dict(vicreg_config),
+            "initial_model_sha256": initial_model_sha256,
         },
         checkpoint_path,
     )
@@ -182,6 +205,20 @@ def train_mask_collapse_cell(
         "device": str(device),
         "masking": dict(config["masking"]),
         "vicreg_weight": vicreg_weight if cell == "C1" else 0.0,
+        "vicreg_config": dict(vicreg_config),
+        "contract": contract,
+        "training_contract": {
+            "model_initialization_seed": seed,
+            "initial_model_sha256": initial_model_sha256,
+            "data_loader_seed": seed,
+            "drop_last_training_batch": drop_last_training_batch,
+            "batch_size": batch_size,
+            "steps_per_epoch": len(train_loader),
+            "examples_per_epoch": len(train_loader) * batch_size,
+            "discarded_examples_per_epoch": len(train_data) - len(train_loader) * batch_size,
+            "first_view_mask_seed_schedule": "seed + epoch*1000003 + batch_index",
+            "second_view_seed_offset": int(vicreg_config["second_view_seed_offset"]),
+        },
         "n_real_train": len(train_data),
         "n_real_validation": len(validation_data),
         "history": history,

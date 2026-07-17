@@ -35,13 +35,9 @@ def _read_csv(path: Path) -> list[dict[str, str]]:
         return list(csv.DictReader(handle))
 
 
-def validate_study_dataset_contracts(real_root: Path, simulation_root: Path) -> dict[str, Any]:
+def validate_real_event_dataset_contract(real_root: Path) -> dict[str, Any]:
     real_contract = json.loads((real_root / "input_contract.json").read_text(encoding="utf-8"))
-    simulation_summary = json.loads(
-        (simulation_root / "dataset_summary.json").read_text(encoding="utf-8")
-    )
     real_signals = np.load(real_root / "signals.npy", mmap_mode="r")
-    simulation_signals = np.load(simulation_root / "signals.npy", mmap_mode="r")
     errors: list[str] = []
     if real_contract.get("contract_id") != "yeast-event-8192to4096-bandpass-global-v1":
         errors.append("unexpected real input contract")
@@ -49,6 +45,21 @@ def validate_study_dataset_contracts(real_root: Path, simulation_root: Path) -> 
         errors.append("real output length is not 4096")
     if list(real_signals.shape)[1:] != [4096]:
         errors.append(f"real signal shape is incompatible: {real_signals.shape}")
+    return {
+        "valid": not errors,
+        "errors": errors,
+        "real_shape": list(real_signals.shape),
+        "real_contract": real_contract.get("contract_id"),
+    }
+
+
+def validate_study_dataset_contracts(real_root: Path, simulation_root: Path) -> dict[str, Any]:
+    real = validate_real_event_dataset_contract(real_root)
+    simulation_summary = json.loads(
+        (simulation_root / "dataset_summary.json").read_text(encoding="utf-8")
+    )
+    simulation_signals = np.load(simulation_root / "signals.npy", mmap_mode="r")
+    errors = list(real["errors"])
     if list(simulation_signals.shape)[1:] != [4096]:
         errors.append(f"simulation signal shape is incompatible: {simulation_signals.shape}")
     if "4096" not in str(simulation_summary.get("input_contract", "")):
@@ -56,9 +67,9 @@ def validate_study_dataset_contracts(real_root: Path, simulation_root: Path) -> 
     return {
         "valid": not errors,
         "errors": errors,
-        "real_shape": list(real_signals.shape),
+        "real_shape": real["real_shape"],
         "simulation_shape": list(simulation_signals.shape),
-        "real_contract": real_contract["contract_id"],
+        "real_contract": real["real_contract"],
         "simulation_generator": simulation_summary["generator_id"],
     }
 

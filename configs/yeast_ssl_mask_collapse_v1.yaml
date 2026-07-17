@@ -1,0 +1,41 @@
+study:
+  protocol: yeast-ssl-mask-collapse-v1-20260717
+  source_protocol: yeast-ssl-mask-ablation-v1-20260717
+  source_mask_ablation_config: configs/yeast_ssl_mask_ablation_v1.yaml
+  base_config: configs/yeast_ssl_rebuild_v1.yaml
+  real_dataset: yeast-events-representation@v3
+  selection_rule: use_anti_collapse_policy_from_manifested_full_seed42_mask_report
+  sealed_splits_allowed: false
+
+training:
+  first_stage_seed: 42
+  cells:
+    C0: {time_reconstruction: true, vicreg: false}
+    C1: {time_reconstruction: true, vicreg: true}
+  equal_architecture_optimizer_epochs_data_order_and_first_view_masks: true
+  architecture_change_allowed: false
+  target_change_allowed: false
+  drop_last_training_batch: true
+  vicreg_global_weight: 1.0
+  vicreg:
+    invariance_weight: 1.0
+    variance_weight: 1.0
+    covariance_weight: 0.04
+    variance_floor: 0.5
+    epsilon: 0.0001
+    second_view_seed_offset: 10000019
+
+promotion_gates:
+  pretext:
+    output_rms_fraction_of_target_min: 0.10
+  geometry:
+    effective_rank_min: 8.0
+    mean_pairwise_cosine_max: 0.95
+  comparison:
+    require_beats_interpolation: true
+    require_geometry_improvement_over_c0: true
+
+decision:
+  success_action: run_development_utility_evaluation
+  failure_action: run_preregistered_phase_invariant_target_contrast
+  additional_seed_authorization: requires_seed42_pretext_geometry_and_development_utility_pass

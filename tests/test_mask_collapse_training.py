@@ -2,14 +2,16 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
 import torch
 
-from p3_ssl.config import load_config
+from p3_ssl.config import load_config, validate_mask_collapse_config
 from p3_ssl.mask_collapse_training import mask_collapse_loss
 from p3_ssl.study_model import YeastStudyModel, YeastStudyModelConfig
 
 
 CONFIG_PATH = Path(__file__).parents[1] / "configs/yeast_ssl_rebuild_v1.yaml"
+COLLAPSE_CONFIG_PATH = Path(__file__).parents[1] / "configs/yeast_ssl_mask_collapse_v1.yaml"
 
 
 def _tiny_config() -> dict:
@@ -65,6 +67,14 @@ def test_mask_collapse_cells_have_finite_gradients() -> None:
             cell=cell,
             seed=3,
             vicreg_weight=1.0,
+            vicreg_config={
+                "invariance_weight": 1.0,
+                "variance_weight": 1.0,
+                "covariance_weight": 0.04,
+                "variance_floor": 0.5,
+                "epsilon": 1.0e-4,
+                "second_view_seed_offset": 10_000_019,
+            },
         )
         loss.backward()
         assert torch.isfinite(loss)
@@ -73,3 +83,11 @@ def test_mask_collapse_cells_have_finite_gradients() -> None:
             for parameter in model.parameters()
         )
         assert metrics["vicreg"] == 0.0 if cell == "C0" else metrics["vicreg"] > 0.0
+
+
+def test_mask_collapse_config_requires_matched_singleton_safe_batches() -> None:
+    config = load_config(COLLAPSE_CONFIG_PATH)
+    validate_mask_collapse_config(config)
+    config["training"]["drop_last_training_batch"] = False
+    with pytest.raises(ValueError, match="drop-last"):
+        validate_mask_collapse_config(config)

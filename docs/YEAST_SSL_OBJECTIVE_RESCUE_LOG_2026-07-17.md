@@ -313,3 +313,23 @@ production encoder and a new 24-output token head whose initialization occurs
 after the unchanged C1 encoder. It must preserve a byte-identical initial
 encoder state and memorize both one and eight fixed real targets by at least
 80% relative to the stronger zero/train-constant baseline before any full run.
+
+## 12. S1 fixed-batch overfit
+
+Artifact:
+`artifacts/unsupervised-learning-flow-cytometry/audits/yeast-local-spectral-overfit-v1`.
+
+The reconstructed C1 control model reproduces its historical initial SHA256,
+and the S1 treatment encoder is byte-identical before the new head is
+initialized. After 500 fixed-mask target-only steps:
+
+| Fixed batch | Strongest baseline MSE | Final S1 MSE | Relative improvement | Output/target RMS |
+|---|---:|---:|---:|---:|
+| 1 signal | 0.2452 | 0.00048 | 0.998 | 1.013 |
+| 8 signals | 0.2853 | 0.00587 | 0.979 | 1.004 |
+
+First-step encoder and target-head gradient norms are finite and nonzero for
+both cells. S1 therefore passes implementation, alignment, capacity, amplitude,
+and initialization gates. The next action is one local one-epoch training
+smoke. Only a clean full 20-epoch seed-42 pfcalcul run may produce the held-out
+target, geometry, and terminal utility decision.

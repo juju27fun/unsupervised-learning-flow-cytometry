@@ -17,6 +17,9 @@ study:
   source_predictability_run: yeast-local-spectral-predictability-v1
   source_predictability_run_json_sha256: 490856f83fb18e945a2e16d1257e9f333b2903d41203a832b5095cc5802bfdee
   source_predictability_metrics_sha256: 3ad017b8c8f00eb14fc21cd44a5ee96c93c1082fcd7865f7ca1e19948e9b5a4e
+  source_overfit_run: yeast-local-spectral-overfit-v1
+  source_overfit_run_json_sha256: c4033d2991efabe031a829d09938d78fa80d5a8265914cf5d5f51037d1b96bdf
+  source_overfit_metrics_sha256: 401223de5a316506a73f688d343a64dabffab852370c8c35869a9f1ffcc94532
   sealed_splits_allowed: false
 
 target:

@@ -241,3 +241,47 @@ only the prediction target changes. Simulation-assisted training remains
 ineligible because both simulator versions failed common-support gates. The
 historical masked-zero STFT loss also remains ineligible because mask edges
 contaminate its spectra.
+
+## 10. Handcrafted supplement and final target amendment
+
+Artifact:
+`artifacts/unsupervised-learning-flow-cytometry/reports/yeast-collapse-utility-supplement-v1`.
+
+All primary probes converged. At 10% labels, averaged over probe seeds:
+
+| Comparison | Macro-F1 difference | Descriptive block interval |
+|---|---:|---:|
+| C1 minus signal-only handcrafted | -0.059 | `[-0.092, -0.016]` |
+| C1 minus full handcrafted | -0.098 | `[-0.124, -0.050]` |
+| Full handcrafted plus C1 minus full handcrafted | -0.015 | `[-0.042, +0.024]` |
+
+The supplement therefore confirms the mask-only rejection and finds no
+practical complementarity signal. The full handcrafted point estimate is
+`0.392`, compared with `0.294` for C1. The intervals remain descriptive for the
+20-block support limitation stated above. No additional mask-only seed or
+sealed evaluation is authorized.
+
+The earlier conditional F1 envelope/energy design is not run unchanged. Later
+evidence shows that envelope features are the weakest handcrafted family while
+frequency features are materially useful. Removing VICReg from F1 would also
+confound target choice with a renewed collapse mechanism. This is recorded as
+a prospective amendment, not mislabeled as the earlier preregistered F1 cell.
+
+The final objective candidate is S1: C1 with only waveform prediction replaced
+by local analytic log-power prediction. S1 keeps PE25, two mask views, VICReg
+weight 1.0, the encoder, optimizer, data order, epochs, and seed 42 fixed. For
+each complete unmasked 1 MHz trace, it computes one 256-sample Hann-windowed
+analytic FFT per token, keeps the 24 positive-frequency bins from 7.8125 to
+97.65625 kHz, normalizes power by the trace-wide mean retained power, and
+applies `log1p`. Only center tokens 8 through 247 are valid. The target is never
+computed from masked zeros.
+
+Before training, S1 must pass exact shape/frequency/dtype tests, phase-rotation
+relative error at most 0.002, mask-target independence, finite nonzero encoder
+and head gradients, and one/eight-example overfit improvement of at least 80%
+over the better zero or train-constant predictor. Held-out target prediction
+must beat zero, train constant, and features computed after waveform
+interpolation; output/target RMS must be at least 0.10; rank must be at least 8;
+and cosine must be at most 0.95. Event, background, and event-boundary frames
+are reported separately. Failure of any sequential gate ends objective rescue
+without simulation, another target sweep, or a sealed split.

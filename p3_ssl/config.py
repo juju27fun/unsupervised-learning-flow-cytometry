@@ -259,3 +259,74 @@ def validate_collapse_utility_config(config: dict[str, Any]) -> None:
         raise ValueError("Full utility probe seeds changed")
     if int(full.get("grouped_bootstrap_repeats", 0)) != 1000:
         raise ValueError("Full utility requires 1000 paired bootstrap repeats")
+
+
+def validate_local_spectral_study_config(config: dict[str, Any]) -> None:
+    study = config.get("study", {})
+    if study.get("sealed_splits_allowed") is not False:
+        raise ValueError("S1 must remain development-only")
+    if study.get("dataset") != "yeast-events-representation@v3":
+        raise ValueError("S1 must use the same real dataset as C1")
+    if study.get("source_mask_policy") != "PE25":
+        raise ValueError("S1 must retain the selected C1 mask policy")
+    target = config.get("target", {})
+    expected_target = {
+        "kind": "analytic_local_log_power",
+        "input_length": 4096,
+        "sampling_frequency_hz": 1000000.0,
+        "patch_size": 16,
+        "window_samples": 256,
+        "first_frequency_bin": 2,
+        "stop_frequency_bin": 26,
+        "first_valid_token": 8,
+        "stop_valid_token": 248,
+        "feature_count": 24,
+        "normalization": "per_trace_mean_retained_power",
+        "transform": "log1p",
+        "compute_before_masking": True,
+    }
+    if target != expected_target:
+        raise ValueError("S1 local spectral target differs from the single frozen definition")
+    training = config.get("training", {})
+    if int(training.get("seed", -1)) != 42:
+        raise ValueError("S1 first stage is restricted to seed 42")
+    if training.get("control_cell") != "C1" or training.get("treatment_cell") != "S1":
+        raise ValueError("S1 must change only the C1 prediction target")
+    if float(training.get("vicreg_global_weight", -1.0)) != 1.0:
+        raise ValueError("S1 must retain the C1 VICReg weight")
+    if training.get("drop_last_training_batch") is not True:
+        raise ValueError("S1 must retain the C1 drop-last policy")
+    vicreg = training.get("vicreg", {})
+    if vicreg != {
+        "invariance_weight": 1.0,
+        "variance_weight": 1.0,
+        "covariance_weight": 0.04,
+        "variance_floor": 0.5,
+        "epsilon": 0.0001,
+        "second_view_seed_offset": 10000019,
+    }:
+        raise ValueError("S1 VICReg coefficients differ from C1")
+    gates = config.get("gates", {})
+    if gates.get("preflight") != {
+        "phase_rotation_relative_error_max": 0.002,
+        "mask_target_independence_required": True,
+        "fixed_one_and_eight_improvement_min": 0.8,
+        "finite_nonzero_encoder_and_head_gradients": True,
+    }:
+        raise ValueError("S1 preflight gates changed")
+    if gates.get("held_out") != {
+        "require_beats_zero": True,
+        "require_beats_train_constant": True,
+        "require_beats_feature_of_interpolation": True,
+        "output_rms_fraction_of_target_min": 0.1,
+        "effective_rank_min": 8.0,
+        "mean_pairwise_cosine_max": 0.95,
+        "report_event_background_boundary": True,
+    }:
+        raise ValueError("S1 held-out gates changed")
+    if config.get("decision") != {
+        "success_action": "run_development_utility_with_handcrafted_controls",
+        "failure_action": "end_objective_rescue_negative",
+        "additional_seed_authorization": "forbidden_until_all_seed42_gates_and_utility_pass",
+    }:
+        raise ValueError("S1 terminal decision policy changed")

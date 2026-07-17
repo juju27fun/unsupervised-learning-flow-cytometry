@@ -1,0 +1,71 @@
+study:
+  protocol: yeast-ssl-local-spectral-v1-20260717
+  status: prospective_amendment_after_mask_only_utility_failure
+  dataset: yeast-events-representation@v3
+  dataset_manifest_sha256: 06ba5d041f4d5bf6e5574d134fee955fd9546d6a3e7532ae1d1456fee274fe5a
+  base_config: configs/yeast_ssl_rebuild_v1.yaml
+  source_mask_ablation_config: configs/yeast_ssl_mask_ablation_v1.yaml
+  source_mask_collapse_config: configs/yeast_ssl_mask_collapse_v1.yaml
+  source_mask_policy: PE25
+  source_c1_run: yeast-mask-collapse-dev-s42-v1-c1
+  source_utility_run: yeast-collapse-utility-full-s42-v1
+  source_utility_run_json_sha256: 1ba7bfbf2d699e09ba9b7b28c2c86ab5af411096164565987cec0f39d3a24e28
+  source_utility_metrics_sha256: c34917fe4a71c53279a5775252eee6be80e3dc510c5539972067f64e6aa49a09
+  source_supplement_run: yeast-collapse-utility-supplement-v1
+  source_supplement_run_json_sha256: 9b4111fcfebf7ba37aa1d9e8f2fe28def09b068f9f0c1efc9d764cf6ebd9141b
+  source_supplement_metrics_sha256: 7f994e3927230fbdb09cf86a4a85b9e68966118c5a46af49196b901377d69a7d
+  sealed_splits_allowed: false
+
+target:
+  kind: analytic_local_log_power
+  input_length: 4096
+  sampling_frequency_hz: 1000000.0
+  patch_size: 16
+  window_samples: 256
+  first_frequency_bin: 2
+  stop_frequency_bin: 26
+  first_valid_token: 8
+  stop_valid_token: 248
+  feature_count: 24
+  normalization: per_trace_mean_retained_power
+  transform: log1p
+  compute_before_masking: true
+
+training:
+  seed: 42
+  control_cell: C1
+  treatment_cell: S1
+  only_changed_factor: pointwise_waveform_to_analytic_local_log_power_target
+  preserve_encoder_architecture_optimizer_epochs_data_order_and_masks: true
+  drop_last_training_batch: true
+  vicreg_global_weight: 1.0
+  vicreg:
+    invariance_weight: 1.0
+    variance_weight: 1.0
+    covariance_weight: 0.04
+    variance_floor: 0.5
+    epsilon: 0.0001
+    second_view_seed_offset: 10000019
+  preflight_profiles:
+    predictability: {max_train_events: 256, max_validation_events: 256, batch_size: 32}
+    overfit: {steps: 500, learning_rate: 0.001, log_every: 50}
+
+gates:
+  preflight:
+    phase_rotation_relative_error_max: 0.002
+    mask_target_independence_required: true
+    fixed_one_and_eight_improvement_min: 0.80
+    finite_nonzero_encoder_and_head_gradients: true
+  held_out:
+    require_beats_zero: true
+    require_beats_train_constant: true
+    require_beats_feature_of_interpolation: true
+    output_rms_fraction_of_target_min: 0.10
+    effective_rank_min: 8.0
+    mean_pairwise_cosine_max: 0.95
+    report_event_background_boundary: true
+
+decision:
+  success_action: run_development_utility_with_handcrafted_controls
+  failure_action: end_objective_rescue_negative
+  additional_seed_authorization: forbidden_until_all_seed42_gates_and_utility_pass

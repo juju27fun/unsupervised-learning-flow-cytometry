@@ -14,7 +14,9 @@ The chronological infrastructure record is in
 [`YEAST_SSL_EXECUTION_LOG.md`](YEAST_SSL_EXECUTION_LOG.md).
 The separately preregistered one-month follow-up is in
 [`YEAST_SSL_ONE_MONTH_FOLLOWUP_PLAN_2026-07-16.md`](YEAST_SSL_ONE_MONTH_FOLLOWUP_PLAN_2026-07-16.md);
-it does not reopen this protocol or its final test.
+it does not reopen this protocol or its final test. The later, development-only
+diagnosis of the failed SSL objective is recorded in
+[`YEAST_SSL_OBJECTIVE_RESCUE_LOG_2026-07-17.md`](YEAST_SSL_OBJECTIVE_RESCUE_LOG_2026-07-17.md).
 
 ## Abstract
 
@@ -435,9 +437,9 @@ entirely_below_zero`; the immutable source run was not rewritten.
 | 1 event/split validity | Conditional pass | v7 and split checks pass for one acquisition; reliability/OOD waived, not satisfied |
 | 2 input/information contract | Pass | One physical contract and coherent factor policy enforced |
 | 3 baselines | Pass | A0 system baselines complete over the frozen splits |
-| 4 pretext validity | Retrospective fail | A1 is marginally worse than zero across three seeds and predicts less than 1% of target RMS |
+| 4 pretext validity | Original fail; bounded diagnosis closed negative | A1 is worse than zero; S1 later optimizes and avoids collapse but remains `2.34x` worse than interpolation |
 | 5 scientific promotion | Fail / controlled negative | A4 fails the primary baseline and minimum-effect criteria |
-| 6 optional expansion | Not authorized | Stop rule applies; no post-hoc rescue experiment |
+| 6 optional expansion | Not authorized for A0-A4 | The final test remains closed; the separately frozen development-only objective diagnosis is complete |
 
 ## 11. Scientific Conclusion
 
@@ -454,6 +456,41 @@ supervision repaired part of the geometry; real adaptation added a small gain;
 but neither repaired the simulation-real gap nor the class-specific failure.
 More optimization of the same one-acquisition protocol would be architecture
 search against an exhausted endpoint, not stronger evidence.
+
+### Post-study diagnosis of the SSL loss
+
+A separate development-only rescue asked a narrower question: did A1 fail
+because the implementation could not optimize, because its embeddings
+collapsed, or because the prediction target was not informative enough? This
+work never reopened the one-time test.
+
+Patch-aligned masks first repaired waveform reconstruction. A matched two-view
+VICReg cell then raised effective rank from `2.55` to `9.60`, but failed linear
+utility against C0, random, and handcrafted controls. The final S1
+objective/head package replaced pointwise waveform prediction with local
+analytic log-power while preserving the encoder, PE25 masks, optimizer,
+20-epoch budget, data order, and VICReg weight.
+
+S1's prediction loss fell by `73.7%`, its output reached `0.940` of target RMS,
+effective rank reached `14.82`, and mean pairwise cosine fell to `0.698`.
+Therefore the original concern that the SSL loss could not go down is no longer
+correct. Nevertheless, S1 development-validation MSE was `0.0597`, versus
+`0.0255` for computing the same features after linear waveform interpolation.
+The failure held separately on event, boundary, and background frames. S1 thus
+learned a noncollapsed representation and a real pretext, but did not add
+predictive information beyond a simple deterministic signal-processing rule.
+
+![S1 objective rescue](../../artifacts/unsupervised-learning-flow-cytometry/reports/yeast-local-spectral-decision-v1/s1_local_spectral_decision.png)
+
+*Figure 11. The S1 loss optimizes and embedding geometry improves, but the
+strong interpolation control remains better in every region.*
+
+The frozen decision was `end_objective_rescue_negative`: no S1 utility, extra
+representation seed, new target sweep, simulation-assisted rescue, or sealed
+evaluation was authorized. Because target choice and validation gates were
+developed on the same development regime, this is an exploratory stop decision
+for this objective/head package, not a universal negative claim about spectral
+SSL.
 
 ## 12. Limitations and Future Study
 
@@ -484,6 +521,9 @@ publication integration, not further model tuning.
 | One-time final evaluation | Slurm `23487080`, 52 s |
 | Final metrics SHA256 | `0f0b993b79552729790c9b9be71dfc2d5d13811dd84015060cb52753fed2faae` |
 | Final predictions SHA256 | `84221ba21687bddc4eda1cc2e5c68e723d785e143b27fe74e6ec5df00afaa8eb` |
+| S1 training revision | `unsupervised-learning-flow-cytometry@4bc2403919c34bf3c6c192c72115b030d9a407f6` |
+| S1 report revision | `unsupervised-learning-flow-cytometry@5e0e863` |
+| S1 dataset manifest | `06ba5d041f4d5bf6e5574d134fee955fd9546d6a3e7532ae1d1456fee274fe5a` |
 
 Canonical artifacts from the workspace root:
 
@@ -495,6 +535,8 @@ Canonical artifacts from the workspace root:
   `artifacts/unsupervised-learning-flow-cytometry/reports/yeast-pfcalcul-final-in-session-v1/`;
 - detector review:
   `artifacts/particles2SNR-pipeline/audits/yeast-event-review-v7-analysis-20260715-v2/`.
+- terminal S1 objective decision:
+  `artifacts/unsupervised-learning-flow-cytometry/reports/yeast-local-spectral-decision-v1/`.
 
 Validation from the workspace root:
 

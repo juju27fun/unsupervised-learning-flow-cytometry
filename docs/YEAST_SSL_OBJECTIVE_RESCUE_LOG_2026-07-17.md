@@ -333,3 +333,59 @@ both cells. S1 therefore passes implementation, alignment, capacity, amplitude,
 and initialization gates. The next action is one local one-epoch training
 smoke. Only a clean full 20-epoch seed-42 pfcalcul run may produce the held-out
 target, geometry, and terminal utility decision.
+
+## 13. Full S1 result and terminal decision
+
+Pfcalcul Jupyter-runner job
+`20260717_yeast_local_spectral_full_s42_v1` completed with return code 0. The
+GPU smoke and full artifacts were retrieved and manifest validated. The full
+run used 7,009 development-training events, 835 development-validation events,
+20 epochs, seed 42, and no sealed split.
+
+The central optimization problem is resolved: local-spectral prediction loss
+fell from `0.2703` in epoch 1 to `0.0712` in epoch 20, a `73.7%` reduction.
+S1 also produced nontrivial output amplitude (`0.940` of target RMS) and a
+healthy global geometry relative to C1:
+
+| Representation | Effective rank | Mean pairwise cosine |
+|---|---:|---:|
+| C1 waveform plus VICReg | 9.60 | 0.935 |
+| S1 local spectrum plus VICReg | 14.82 | 0.698 |
+
+The development-validation prediction controls give the terminal result:
+
+| Predictor | Masked local-spectral MSE |
+|---|---:|
+| Zero | 0.4525 |
+| Train-derived constant | 0.2480 |
+| S1 | 0.0597 |
+| Feature of linearly interpolated waveform | **0.0255** |
+
+S1 is `2.34x` worse than interpolation. This is not caused by an easy
+background majority: S1/interpolation MSE ratios are `2.33` on event frames,
+`1.91` at boundaries, and `2.51` on background frames. Five of six held-out
+gates pass; only `beats_feature_of_interpolation` fails. The frozen decision is
+therefore `end_objective_rescue_negative`. Development utility, seeds 43/44,
+another target, simulation-assisted training, and the sealed split are not
+authorized.
+
+![S1 terminal decision](../../artifacts/unsupervised-learning-flow-cytometry/reports/yeast-local-spectral-decision-v1/s1_local_spectral_decision.png)
+
+The generated decision report is
+`artifacts/unsupervised-learning-flow-cytometry/reports/yeast-local-spectral-decision-v1`.
+It independently verifies all four registered dataset files and confirms zero
+record or capture-block overlap across train, validation, and sealed splits.
+
+### Claim boundary
+
+This is a useful negative result for the frozen objective/head package, not for
+SSL in general. The development-validation set was reused after target and
+baseline design, so the gates are an exploratory project stop rule rather than
+a confirmatory test. S1 changes the output head and target dimensionality while
+preserving the encoder contract; it should not be described as a mathematically
+pure target-only intervention. The defensible conclusion is:
+
+> Under the frozen seed-42 PE25 development protocol, local-spectral SSL
+> optimized, beat zero and train-constant controls, and avoided embedding
+> collapse, but did not predict hidden local spectra better than deterministic
+> waveform interpolation. The constrained objective rescue is closed.

@@ -1,11 +1,27 @@
 # Yeast SSL Rebuild: Execution Log
 
-**Updated:** 2026-07-16
+**Updated:** 2026-07-17
 
 This is a concise evidence log for
 [`YEAST_SSL_CRITIQUE_AND_REBUILD_PLAN.md`](YEAST_SSL_CRITIQUE_AND_REBUILD_PLAN.md).
 It records gate decisions and failed intermediate designs; it is not a results
 manuscript.
+
+## 2026-07-17: Objective Rescue Closed
+
+- Corrected patch-aligned masking made waveform reconstruction learn, but the
+  global embedding remained collapsed.
+- C1 added matched two-view VICReg and passed geometry gates, but failed
+  development utility against C0, random, and handcrafted controls.
+- The final S1 objective/head package predicted phase-invariant local analytic
+  log-power. Its training loss fell by `73.7%`; it beat zero and train constant,
+  reached effective rank `14.82`, and reduced mean cosine to `0.698`.
+- S1 remained `2.34x` worse than the deterministic interpolation control and
+  lost in event, boundary, and background regions separately.
+- Decision: `end_objective_rescue_negative`. Do not run utility, another seed,
+  another target, simulation assistance, or a sealed split.
+- Evidence:
+  [`YEAST_SSL_OBJECTIVE_RESCUE_LOG_2026-07-17.md`](YEAST_SSL_OBJECTIVE_RESCUE_LOG_2026-07-17.md).
 
 ## 2026-07-16: Follow-Up Week 1 Closed
 
@@ -46,7 +62,7 @@ manuscript.
 | 1: event and split validity | Conditional pass under scope waiver | The v7 review gives candidate precision `48/48` and full-trace `TP=85`, `FP=1`, `FN=1`; reviewer reliability and a second acquisition remain absent | Authorize in-session study only; biological and acquisition-OOD claims remain prohibited |
 | 2: input and information contract | Pass | P3 loaders, config, masking, loss, and simulator policy enforce the frozen contract | Smoke training authorized |
 | 3: baseline readiness | Pass | Full A0 baselines and label-efficiency evaluation completed with converged probes | Continue frozen A1-A4 comparison |
-| 4: pretext validity | Retrospective fail | The 2026-07-17 zero-control audit shows A1 marginally worse than zero at every seed, with less than 1% output/target RMS; A1/A2 also collapse | Treat the long-block masked-MSE formulation as a failed pretext |
+| 4: pretext validity | Original fail; bounded rescue closed negative | A1 is worse than zero; corrected masking and S1 optimize with healthy geometry, but S1 is `2.34x` worse than interpolation | The implementation can learn, but the frozen rescue adds no predictive value beyond the deterministic control |
 | 5: scientific promotion | Controlled negative | Development rejected promotion; one-time in-session test confirms A4 below handcrafted | Do not promote A4; no OOD claim |
 | 6: optional methods | Not authorized | Gate 5 failed and stop rule applies | No post-hoc alignment, inversion, or architecture search |
 

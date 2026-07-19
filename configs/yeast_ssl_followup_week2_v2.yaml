@@ -1,0 +1,6 @@
+extends: yeast_ssl_followup_week2_v1.yaml
+
+study:
+  protocol: yeast-ssl-followup-week2-v2-20260719
+  simulation_dataset: yeast-passage-simulations@v2
+  migration_source_protocol: yeast-ssl-followup-week2-v1-20260716

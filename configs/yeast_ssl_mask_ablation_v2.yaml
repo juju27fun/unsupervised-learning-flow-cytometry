@@ -1,0 +1,8 @@
+extends: yeast_ssl_mask_ablation_v1.yaml
+
+study:
+  protocol: yeast-ssl-mask-ablation-v2-20260719
+  source_protocol: yeast-ssl-rebuild-v2
+  base_config: configs/yeast_ssl_rebuild_v2.yaml
+  simulation_dataset: yeast-passage-simulations@v2
+  migration_source_protocol: yeast-ssl-mask-ablation-v1-20260717

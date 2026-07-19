@@ -4,16 +4,67 @@ from pathlib import Path
 from typing import Any
 
 
-def load_config(path: str | Path) -> dict[str, Any]:
+ACTIVE_SIMULATION_DATASET = "yeast-passage-simulations@v2"
+HISTORICAL_SIMULATION_DATASET = "yeast-passage-simulations@v1"
+REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+
+
+def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
+    merged = dict(base)
+    for key, value in override.items():
+        if (
+            key in merged
+            and isinstance(merged[key], dict)
+            and isinstance(value, dict)
+        ):
+            merged[key] = _deep_merge(merged[key], value)
+        else:
+            merged[key] = value
+    return merged
+
+
+def load_config(
+    path: str | Path,
+    *,
+    _ancestry: tuple[Path, ...] = (),
+) -> dict[str, Any]:
     try:
         import yaml
     except ImportError as exc:
         raise RuntimeError("PyYAML is required to read P3_SSL YAML configs") from exc
-    with Path(path).open("r") as f:
+    config_path = Path(path)
+    if not config_path.is_absolute() and not config_path.is_file():
+        repository_relative = REPOSITORY_ROOT / config_path
+        if repository_relative.is_file():
+            config_path = repository_relative
+    with config_path.open("r") as f:
         data = yaml.safe_load(f)
     if not isinstance(data, dict):
         raise ValueError(f"Config must be a mapping: {path}")
+    parent = data.pop("extends", None)
+    if parent is not None:
+        resolved = config_path.resolve()
+        if resolved in _ancestry:
+            raise ValueError(f"Config inheritance cycle: {config_path}")
+        parent_path = Path(parent)
+        if not parent_path.is_absolute():
+            parent_path = config_path.parent / parent_path
+        base = load_config(parent_path, _ancestry=(*_ancestry, resolved))
+        data = _deep_merge(base, data)
     return data
+
+
+def validate_active_simulation_dataset(config: dict[str, Any]) -> None:
+    study = config.get("study", {})
+    selected = study.get("simulation_dataset")
+    if selected is None:
+        raise ValueError("Active training config must declare study.simulation_dataset")
+    if selected != ACTIVE_SIMULATION_DATASET:
+        raise ValueError(
+            "Active training is v2-only: expected "
+            f"{ACTIVE_SIMULATION_DATASET}, got {selected}. "
+            f"{HISTORICAL_SIMULATION_DATASET} is historical/reference only."
+        )
 
 
 def ssl_token_count(input_length: int, patch_size: int, patch_stride: int) -> int:

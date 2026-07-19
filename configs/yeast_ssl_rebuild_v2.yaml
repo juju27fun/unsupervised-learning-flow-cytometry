@@ -1,0 +1,7 @@
+extends: yeast_ssl_rebuild_v1.yaml
+
+study:
+  protocol: yeast-ssl-rebuild-v2
+  simulation_dataset: yeast-passage-simulations@v2
+  migration_source_protocol: yeast-ssl-rebuild-v1
+  migration_policy: same_cells_hyperparameters_seeds_and_development_splits

@@ -47,7 +47,7 @@ def main() -> None:
     )
     parser.add_argument("--checkpoint", action="append", type=_checkpoint, required=True)
     parser.add_argument(
-        "--config", type=Path, default=Path("configs/yeast_ssl_rebuild_v1.yaml")
+        "--config", type=Path, default=Path("configs/yeast_ssl_rebuild_v2.yaml")
     )
     parser.add_argument("--real-root", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)

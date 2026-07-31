@@ -251,7 +251,7 @@ def main() -> None:
         "run_id": args.run_id,
         "datasets": {
             "real": "yeast-events-representation@v3",
-            "simulation": "yeast-passage-simulations@v1",
+            "simulation": "yeast-passage-simulations@v2",
         },
         "splits": {"real": "development_validation", "simulation": "validation"},
         "sealed_splits_used": [],
@@ -270,7 +270,7 @@ def main() -> None:
         "schema_version": 1,
         "project": "unsupervised-learning-flow-cytometry",
         "run_id": args.run_id,
-        "dataset": "yeast-events-representation@v3 + yeast-passage-simulations@v1",
+        "dataset": "yeast-events-representation@v3 + yeast-passage-simulations@v2",
         "repositories": {
             "unsupervised-learning-flow-cytometry": _revision(repo_root),
             "particles2SNR-pipeline": _revision(workspace_root / "particles2SNR-pipeline"),

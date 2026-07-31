@@ -1,0 +1,94 @@
+study:
+  protocol: yeast-budding-masked-learning-v1
+  status: development_single_seed
+  simulation_dataset: yeast-budding-simulations-data@v1
+  scientific_comparator_dataset: yeast-budding-simulations-biophysics@v1
+  real_dataset: yeast-events-representation@v3
+  training_stage: synthetic_only
+  forbidden_splits: [in_session_test, sealed_acquisition_test, followup_test, test]
+  evidence:
+    realism: budding-final-realism
+    mask_mechanics: yeast-sphere-mask-training-mechanics
+    visual_grammar: yeast-mask-visual-reference
+
+data:
+  input_length: 4096
+  sampling_frequency_hz: 1000000
+  normalization: dataset_global
+  simulation_train_split: train
+  simulation_validation_split: validation
+  real_validation_split: development_validation
+  real_source_group: budding
+  real_training_usage: forbidden
+
+model:
+  architecture: patch_transformer_reconstructor
+  patch_size: 16
+  patch_stride: 8
+  d_model: 64
+  n_heads: 4
+  n_layers: 2
+  dim_feedforward: 256
+  dropout: 0.10
+  activation: gelu
+  max_tokens: 511
+  embedding_pool: mean
+  mask_encoding: sample_visibility_v1
+
+masking:
+  policy: budding_balanced_complete_cycle_v1
+  candidate_size: 16
+  candidate_stride: 8
+  event_windows_per_pass: 3
+  background_windows_per_pass: 3
+  support_relative_threshold: 0.25
+  require_context_each_side: false
+  missing_edge_context_policy: omit_missing_side_without_exclusion
+
+loss:
+  name: balanced_raw_mse
+  event_weight: 0.8
+  background_weight: 0.2
+  report_raw_region_mse: true
+
+training:
+  seed: 42
+  optimizer: adamw
+  learning_rate: 0.0003
+  weight_decay: 0.01
+  grad_clip_norm: 1.0
+  amp: true
+  early_stopping:
+    metric: simulation_validation.model.balanced_loss
+    patience: 10
+    min_delta: 0.001
+  profiles:
+    smoke:
+      coverage_cycles: 1
+      batch_size: 2
+      num_workers: 0
+      max_optimizer_updates: 1
+      max_simulation_train_latents: 2
+      max_simulation_validation_latents: 2
+      max_real_validation_events: 2
+      max_mask_passes_per_source: 2
+      max_reconstruction_examples: 2
+    full:
+      coverage_cycles: 150
+      batch_size: 64
+      num_workers: 2
+      max_optimizer_updates: null
+      max_simulation_train_latents: null
+      max_simulation_validation_latents: null
+      max_real_validation_events: null
+      max_mask_passes_per_source: null
+      max_reconstruction_examples: 12
+
+diagnostics:
+  reconstruction_predictors: [model, zero, visible_mean, nearest, interpolation]
+  embedding_statistics:
+    - effective_rank
+    - active_dimensions_std_gt_1e_3
+    - mean_dimension_std
+    - mean_off_diagonal_cosine_similarity
+    - paired_view_cosine_gain

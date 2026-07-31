@@ -32,7 +32,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Apply the frozen yeast Week 2 promotion gate.")
     parser.add_argument("--evaluation-metrics", type=Path, required=True)
     parser.add_argument(
-        "--config", type=Path, default=Path("configs/yeast_ssl_followup_week2_v1.yaml")
+        "--config", type=Path, default=Path("configs/yeast_ssl_followup_week2_v2.yaml")
     )
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--run-id", required=True)

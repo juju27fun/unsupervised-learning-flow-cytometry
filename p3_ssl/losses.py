@@ -27,12 +27,22 @@ def derivative_huber(pred: torch.Tensor, target: torch.Tensor, mask: torch.Tenso
     return masked_huber(pred_diff, target_diff, diff_mask, delta=delta)
 
 
-def energy_huber(pred: torch.Tensor, target: torch.Tensor, mask: torch.Tensor, delta: float = 1.0) -> torch.Tensor:
+def energy_huber(
+    pred: torch.Tensor,
+    target: torch.Tensor,
+    mask: torch.Tensor,
+    delta: float = 1.0,
+    normalize_by_points: bool = False,
+) -> torch.Tensor:
     mask_f = mask.to(dtype=pred.dtype, device=pred.device)
     while mask_f.ndim < pred.ndim:
         mask_f = mask_f.unsqueeze(1)
     pred_energy = (pred.pow(2) * mask_f).sum(dim=-1)
     target_energy = (target.pow(2) * mask_f).sum(dim=-1)
+    if normalize_by_points:
+        points = mask_f.sum(dim=-1).clamp_min(1.0)
+        pred_energy = pred_energy / points
+        target_energy = target_energy / points
     return F.huber_loss(pred_energy, target_energy, reduction="mean", delta=delta)
 
 
@@ -44,11 +54,18 @@ def composite_reconstruction_loss(
     lambda_derivative: float = 0.2,
     lambda_energy: float = 0.05,
     huber_delta: float = 1.0,
+    normalize_energy_by_points: bool = False,
 ) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
     """Signal-space SSL loss used by the first P3_SSL experiment."""
     signal_loss = masked_mse(pred, target, mask)
     deriv_loss = derivative_huber(pred, target, mask, delta=huber_delta)
-    eng_loss = energy_huber(pred, target, mask, delta=huber_delta)
+    eng_loss = energy_huber(
+        pred,
+        target,
+        mask,
+        delta=huber_delta,
+        normalize_by_points=normalize_energy_by_points,
+    )
     total = (
         lambda_signal * signal_loss
         + lambda_derivative * deriv_loss
@@ -60,4 +77,3 @@ def composite_reconstruction_loss(
         "derivative_huber": deriv_loss.detach(),
         "energy_huber": eng_loss.detach(),
     }
-

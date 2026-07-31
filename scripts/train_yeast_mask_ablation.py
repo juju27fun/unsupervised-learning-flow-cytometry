@@ -12,7 +12,12 @@ from pathlib import Path
 
 import torch
 
-from p3_ssl.config import load_config, validate_mask_ablation_config, validate_study_config
+from p3_ssl.config import (
+    load_config,
+    validate_active_simulation_dataset,
+    validate_mask_ablation_config,
+    validate_study_config,
+)
 from p3_ssl.study_training import train_study_cell
 
 
@@ -31,7 +36,7 @@ def main() -> None:
     parser.add_argument("--policy", required=True)
     parser.add_argument("--seed", type=int, required=True)
     parser.add_argument(
-        "--config", type=Path, default=Path("configs/yeast_ssl_mask_ablation_v1.yaml")
+        "--config", type=Path, default=Path("configs/yeast_ssl_mask_ablation_v2.yaml")
     )
     parser.add_argument("--real-root", type=Path, required=True)
     parser.add_argument("--simulation-root", type=Path, required=True)
@@ -42,6 +47,7 @@ def main() -> None:
     args = parser.parse_args()
 
     ablation = load_config(args.config)
+    validate_active_simulation_dataset(ablation)
     validate_mask_ablation_config(ablation)
     candidates = set(ablation["training"]["candidate_policies"])
     if args.policy not in candidates:
@@ -54,6 +60,7 @@ def main() -> None:
 
     base_path = Path(ablation["study"]["base_config"])
     config = copy.deepcopy(load_config(base_path))
+    validate_active_simulation_dataset(config)
     config["study"]["protocol"] = ablation["study"]["protocol"]
     config["training"]["seed"] = args.seed
     config["masking"].update(ablation["policies"][args.policy])

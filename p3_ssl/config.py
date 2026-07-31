@@ -6,6 +6,7 @@ from typing import Any
 
 ACTIVE_SIMULATION_DATASET = "yeast-passage-simulations@v2"
 HISTORICAL_SIMULATION_DATASET = "yeast-passage-simulations@v1"
+BEAD_SIMULATION_DATASET = "yeast-passage-simulations@v1"
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -64,6 +65,19 @@ def validate_active_simulation_dataset(config: dict[str, Any]) -> None:
             "Active training is v2-only: expected "
             f"{ACTIVE_SIMULATION_DATASET}, got {selected}. "
             f"{HISTORICAL_SIMULATION_DATASET} is historical/reference only."
+        )
+
+
+def validate_bead_simulation_dataset(config: dict[str, Any]) -> None:
+    study = config.get("study", {})
+    selected = study.get("simulation_dataset")
+    if selected is None:
+        raise ValueError("Bead training config must declare study.simulation_dataset")
+    if selected != BEAD_SIMULATION_DATASET:
+        raise ValueError(
+            "Bead training is v1-selected after visual review: expected "
+            f"{BEAD_SIMULATION_DATASET}, got {selected}. "
+            f"{ACTIVE_SIMULATION_DATASET} remains scoped to non-bead studies."
         )
 
 

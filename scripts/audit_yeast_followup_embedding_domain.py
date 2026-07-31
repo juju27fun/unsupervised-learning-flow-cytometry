@@ -209,7 +209,7 @@ def main() -> None:
         "status": "complete",
         "created_at": datetime.now(timezone.utc).isoformat(),
         "command": "audit_yeast_followup_embedding_domain.py",
-        "dataset": "yeast-events-followup@v2 + yeast-passage-simulations@v1 + yeast-template-comparator@v2",
+        "dataset": "yeast-events-followup@v2 + yeast-passage-simulations@v2 + yeast-template-comparator@v2",
         "profile": "week1-bounded-cuda-embedding-sensitivity",
         "sealed_splits_used": [],
         "repositories": {

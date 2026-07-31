@@ -143,7 +143,7 @@ def main() -> None:
         "status": "complete" if status == "pass" else "failed",
         "created_at": datetime.now(timezone.utc).isoformat(),
         "command": "preflight_yeast_followup.py",
-        "dataset": "yeast-events-followup@v2 + yeast-passage-simulations@v1",
+        "dataset": "yeast-events-followup@v2 + yeast-passage-simulations@v2",
         "profile": "week1-cpu-preflight",
         "sealed_splits_used": [],
         "config_sha256": _sha256(args.config),

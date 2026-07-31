@@ -1,0 +1,10 @@
+extends: bead_ssl_p25_v1.yaml
+
+study:
+  protocol: bead-ssl-p25-v3-v1sim
+  status: development_single_seed_v1_selected_after_visual_review
+  simulation_dataset: yeast-passage-simulations@v1
+  supersedes_protocol: bead-ssl-p25-v2
+  dataset_decision_evidence:
+    - particle-ssl-class-coverage-c2-v1-diagnostic-2um-r2
+    - particle-c2-v1-v2-dataset-metric-blind-2um-r2

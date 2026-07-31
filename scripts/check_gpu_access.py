@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import argparse
 import json
 import subprocess
 from pathlib import Path
@@ -9,6 +10,9 @@ import torch
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--require-cuda", action="store_true")
+    args = parser.parse_args()
     devices = sorted(str(path) for path in Path("/dev").glob("nvidia*"))
     payload: dict[str, object] = {
         "dev_nvidia": devices,
@@ -48,6 +52,8 @@ def main() -> None:
             "did not expose /dev/nvidia*. Re-run GPU jobs with escalated/out-of-sandbox execution.",
             flush=True,
         )
+        if args.require_cuda:
+            raise SystemExit(1)
 
 
 if __name__ == "__main__":

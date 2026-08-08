@@ -191,7 +191,7 @@ def main() -> None:
         "status": "complete",
         "created_at": datetime.now(timezone.utc).isoformat(),
         "command": "report_yeast_followup_week1.py",
-        "dataset": "yeast-events-followup@v2 + yeast-passage-simulations@v1 + yeast-template-comparator@v2",
+        "dataset": "yeast-events-followup@v2 + yeast-passage-simulations@v2 + yeast-template-comparator@v2",
         "profile": "week1-final-report",
         "sealed_splits_used": [],
         "repositories": {

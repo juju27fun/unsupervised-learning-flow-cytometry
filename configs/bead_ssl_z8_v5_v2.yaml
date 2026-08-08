@@ -1,0 +1,43 @@
+extends: bead_ssl_p25_v1.yaml
+
+study:
+  protocol: bead-ssl-comparison-v2
+  status: development_multiseed
+  simulation_dataset: particles2snr-fbase-z8-cholesky-physicalcorr-effective-snr-synthetic-events@v5
+  real_event_dataset: particles2snr-fbase-dual-clean-z8-events-3class-plus-unclear-development@v2
+  real_signal_dataset: particles2snr-f-dual-clean-c1-yolo-4class@v2
+  training_stage: synthetic_only
+  forbidden_splits: [test]
+
+data:
+  simulation_train_split: train
+  simulation_validation_split: val
+  real_validation_split: val
+
+training:
+  checkpoint_selection: fixed_final
+  matched_monitoring:
+    protocol: matched-policy-fixed-monitor-v1
+    samples_per_split: 2048
+  profiles:
+    smoke:
+      epochs: 1
+      batch_size: 4
+      num_workers: 0
+      max_simulation_train: 8
+      max_simulation_validation: 8
+      max_real_validation_per_class: 2
+    pilot:
+      epochs: 60
+      batch_size: 32
+      num_workers: 2
+      max_simulation_train: null
+      max_simulation_validation: null
+      max_real_validation_per_class: null
+    full:
+      epochs: 20
+      batch_size: 32
+      num_workers: 2
+      max_simulation_train: null
+      max_simulation_validation: null
+      max_real_validation_per_class: null

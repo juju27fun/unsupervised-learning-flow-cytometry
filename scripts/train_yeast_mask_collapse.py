@@ -96,7 +96,7 @@ def main() -> None:
     parser.add_argument("--policy", required=True)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument(
-        "--config", type=Path, default=Path("configs/yeast_ssl_mask_collapse_v1.yaml")
+        "--config", type=Path, default=Path("configs/yeast_ssl_mask_collapse_v2.yaml")
     )
     parser.add_argument("--selection-report", type=Path, required=True)
     parser.add_argument("--real-root", type=Path, required=True)

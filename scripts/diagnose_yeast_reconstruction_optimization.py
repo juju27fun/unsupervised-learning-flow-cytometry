@@ -79,7 +79,7 @@ def main() -> None:
         description="Prove whether the yeast reconstructor can memorize fixed real masks."
     )
     parser.add_argument(
-        "--config", type=Path, default=Path("configs/yeast_ssl_rebuild_v1.yaml")
+        "--config", type=Path, default=Path("configs/yeast_ssl_rebuild_v2.yaml")
     )
     parser.add_argument("--real-root", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)

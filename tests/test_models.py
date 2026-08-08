@@ -26,6 +26,31 @@ def test_moment_like_reconstructor_shape() -> None:
     assert y.shape == x.shape
 
 
+def test_moment_like_sample_mask_hides_values_before_patch_embedding() -> None:
+    model = MomentLikeReconstructor(
+        MomentLikeConfig(
+            input_length=32,
+            patch_size=4,
+            patch_stride=4,
+            d_model=16,
+            n_heads=4,
+            n_layers=1,
+            dim_feedforward=32,
+            max_tokens=8,
+        )
+    )
+    model.eval()
+    first = torch.randn(1, 1, 32)
+    second = first.clone()
+    time_mask = torch.zeros(1, 32, dtype=torch.bool)
+    time_mask[:, 7:13] = True
+    second[..., 7:13] = 1000.0
+    with torch.no_grad():
+        first_encoded = model.encode(first, time_mask=time_mask)
+        second_encoded = model.encode(second, time_mask=time_mask)
+    torch.testing.assert_close(first_encoded, second_encoded)
+
+
 def test_moment_like_overlap_shape() -> None:
     model = MomentLikeReconstructor(
         MomentLikeConfig(

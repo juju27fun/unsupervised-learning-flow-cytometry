@@ -1,0 +1,8 @@
+extends: bead_ssl_p25_v1.yaml
+
+study:
+  protocol: bead-ssl-p25-v2
+  status: archived_unselected_reassessment
+  simulation_dataset: yeast-passage-simulations@v2
+  migration_source_protocol: bead-ssl-p25-v1
+  execution_allowed: false

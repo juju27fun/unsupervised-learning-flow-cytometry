@@ -16,6 +16,22 @@ then consult the
 [`critique and rebuild plan`](docs/YEAST_SSL_CRITIQUE_AND_REBUILD_PLAN.md) and
 [`execution log`](docs/YEAST_SSL_EXECUTION_LOG.md) for design history.
 
+For a guided supervisor-facing overview, use the
+[`54-slide ODP presentation`](docs/presentations/YEAST_SSL_GUIDED_SUPERVISOR_2026-07-17.odp)
+and its
+[`step-by-step companion PDF`](docs/presentations/YEAST_SSL_GUIDED_EXPLANATION_2026-07-17.pdf).
+The [`guided plan`](docs/presentations/YEAST_SSL_GUIDED_PRESENTATION_PLAN_2026-07-17.md)
+maps the question, intuition, theory, method, result, and transition for each
+experiment. The original
+[`compact scientific-audit deck`](docs/presentations/YEAST_SSL_SUPERVISOR_2026-07-17.odp)
+is retained as a denser reference version.
+
+The separate single-bead SSL presentation study is frozen on
+`yeast-passage-simulations@v1`; it is intentionally excluded from the yeast
+simulation-v2 migration. Its evidence status and remaining visual work are
+tracked in the
+[`single-bead SSL presentation and experiment plan`](docs/presentations/BEAD_SSL_PRESENTATION_AND_EXPERIMENT_PLAN_2026-07-19.md).
+
 The next four-week mechanistic study is specified separately in
 [`docs/YEAST_SSL_ONE_MONTH_FOLLOWUP_PLAN_2026-07-16.md`](docs/YEAST_SSL_ONE_MONTH_FOLLOWUP_PLAN_2026-07-16.md).
 It does not reopen the frozen v1 result or its exhausted final split.

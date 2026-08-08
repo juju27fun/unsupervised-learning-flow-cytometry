@@ -1,0 +1,99 @@
+study:
+  protocol: bead-ssl-comparison-v1
+  status: development_multiseed
+  simulation_dataset: yeast-passage-simulations@v1
+  real_dataset: particles2snr-f-dual-clean-c1-yolo-4class-saturation-reviewed@v2
+  simulation_component_count: 1
+  training_stage: synthetic_only
+  forbidden_splits: [test]
+
+data:
+  input_length: 4096
+  sampling_frequency_hz: 1000000
+  normalization: window_zscore
+  simulation_train_split: train
+  simulation_validation_split: validation
+  real_train_split: train
+  real_validation_split: val
+
+model:
+  architecture: patch_transformer_reconstructor
+  patch_size: 16
+  patch_stride: 16
+  d_model: 96
+  n_heads: 4
+  n_layers: 3
+  dim_feedforward: 384
+  dropout: 0.10
+  activation: gelu
+  max_tokens: 256
+  embedding_pool: mean
+  mask_encoding: sample_visibility_v1
+
+masking:
+  training_policy: P25
+  evaluation_policy: P25
+  mask_ratio: 0.25
+  high_derivative_probability: 0.25
+  event_biased_probability: 0.0
+  minimum_visible_tokens_between_masks: 1
+  cyclic25:
+    candidate_size: 16
+    candidate_stride: 8
+    event_windows_per_pass: 32
+    background_windows_per_pass: 32
+    target_points_per_pass: 1024
+    short_event_policy: symmetric_context_expansion
+    require_context_each_side: false
+
+loss:
+  selected_cell: B0
+  huber_delta: 1.0
+  normalize_energy_by_points: true
+  cells:
+    B0:
+      lambda_signal: 1.0
+      lambda_derivative: 0.0
+      lambda_energy: 0.0
+    B1:
+      lambda_signal: 1.0
+      lambda_derivative: 0.2
+      lambda_energy: 0.0
+    B2:
+      lambda_signal: 1.0
+      lambda_derivative: 0.0
+      lambda_energy: 0.05
+    B3:
+      lambda_signal: 1.0
+      lambda_derivative: 0.2
+      lambda_energy: 0.05
+
+training:
+  seed: 42
+  optimizer: adamw
+  learning_rate: 0.0003
+  weight_decay: 0.01
+  grad_clip_norm: 1.0
+  amp: true
+  profiles:
+    smoke:
+      epochs: 1
+      batch_size: 8
+      num_workers: 0
+      max_simulation_train: 32
+      max_simulation_validation: 16
+      max_real_validation_per_class: 4
+    full:
+      epochs: 20
+      batch_size: 32
+      num_workers: 2
+      max_simulation_train: null
+      max_simulation_validation: null
+      max_real_validation_per_class: null
+
+promotion_gates:
+  fixed_validation_relative_improvement_min: 0.20
+  output_rms_fraction_min: 0.10
+  must_beat: [zero, visible_mean]
+  useful_reconstruction_baseline: interpolation
+  decision_policy: development_only_no_test_split

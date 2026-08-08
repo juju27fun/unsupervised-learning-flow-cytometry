@@ -12,7 +12,7 @@ from pathlib import Path
 
 import torch
 
-from p3_ssl.config import load_config
+from p3_ssl.config import load_config, validate_active_simulation_dataset
 from p3_ssl.study_training import train_study_cell
 
 
@@ -25,7 +25,7 @@ def _revision(path: Path) -> str:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Train one predeclared yeast SSL rebuild cell.")
     parser.add_argument("--cell", choices=("A1", "A2", "A3", "A4"), required=True)
-    parser.add_argument("--config", type=Path, default=Path("configs/yeast_ssl_rebuild_v1.yaml"))
+    parser.add_argument("--config", type=Path, default=Path("configs/yeast_ssl_rebuild_v2.yaml"))
     parser.add_argument("--real-root", type=Path, required=True)
     parser.add_argument("--simulation-root", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
@@ -44,6 +44,7 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> None:
     args = build_parser().parse_args()
     config = load_config(args.config)
+    validate_active_simulation_dataset(config)
     if args.seed is not None:
         allowed_seeds = {int(seed) for seed in config["training"]["representation_seeds"]}
         if args.seed not in allowed_seeds:

@@ -38,6 +38,11 @@ class MomentLikeReconstructor(nn.Module):
         super().__init__()
         self.config = config
         self.patch_embed = nn.Linear(config.patch_size, config.d_model)
+        self.sample_mask_embed = nn.Linear(
+            config.patch_size,
+            config.d_model,
+            bias=False,
+        )
         self.mask_token = nn.Parameter(torch.zeros(1, 1, config.d_model))
         layer = nn.TransformerEncoderLayer(
             d_model=config.d_model,
@@ -91,9 +96,32 @@ class MomentLikeReconstructor(nn.Module):
         ).clamp_min(1.0)
         return (out / denom).view(bsz, 1, self.config.input_length)
 
-    def encode(self, x: torch.Tensor, token_mask: torch.Tensor | None = None) -> torch.Tensor:
+    def encode(
+        self,
+        x: torch.Tensor,
+        token_mask: torch.Tensor | None = None,
+        time_mask: torch.Tensor | None = None,
+    ) -> torch.Tensor:
+        if x.ndim == 2:
+            x = x.unsqueeze(1)
         patches = self.patchify(x)
+        if time_mask is not None:
+            if time_mask.ndim == 2:
+                time_mask = time_mask.unsqueeze(1)
+            if time_mask.shape != x.shape:
+                raise ValueError(
+                    f"time_mask shape {tuple(time_mask.shape)} does not match "
+                    f"input {tuple(x.shape)}"
+                )
+            mask_patches = self.patchify(
+                time_mask.to(device=x.device, dtype=x.dtype)
+            )
+            patches = patches.masked_fill(mask_patches.bool(), 0.0)
+        else:
+            mask_patches = None
         tokens = self.patch_embed(patches)
+        if mask_patches is not None:
+            tokens = tokens + self.sample_mask_embed(mask_patches)
         if token_mask is not None:
             if token_mask.shape != tokens.shape[:2]:
                 raise ValueError(f"token_mask shape {tuple(token_mask.shape)} does not match tokens {tuple(tokens.shape[:2])}")
@@ -104,8 +132,17 @@ class MomentLikeReconstructor(nn.Module):
         tokens = tokens + self.positional_embedding[:, : tokens.shape[1]].to(tokens.device)
         return self.encoder(tokens)
 
-    def forward(self, x: torch.Tensor, token_mask: torch.Tensor | None = None) -> torch.Tensor:
-        encoded = self.encode(x, token_mask=token_mask)
+    def forward(
+        self,
+        x: torch.Tensor,
+        token_mask: torch.Tensor | None = None,
+        time_mask: torch.Tensor | None = None,
+    ) -> torch.Tensor:
+        encoded = self.encode(
+            x,
+            token_mask=token_mask,
+            time_mask=time_mask,
+        )
         patches = self.reconstruction_head(encoded)
         return self.unpatchify(patches)
 
@@ -113,10 +150,15 @@ class MomentLikeReconstructor(nn.Module):
         self,
         x: torch.Tensor,
         token_mask: torch.Tensor | None = None,
+        time_mask: torch.Tensor | None = None,
         pool: str = "mean",
     ) -> torch.Tensor:
         """Return one fixed-width encoder embedding per signal."""
-        encoded = self.encode(x, token_mask=token_mask)
+        encoded = self.encode(
+            x,
+            token_mask=token_mask,
+            time_mask=time_mask,
+        )
         if pool == "mean":
             return encoded.mean(dim=1)
         if pool == "max":
@@ -124,7 +166,12 @@ class MomentLikeReconstructor(nn.Module):
         raise ValueError(f"Unsupported embedding pool: {pool}")
 
     def encoder_state_dict(self) -> dict[str, torch.Tensor]:
-        keys = ("patch_embed.", "encoder.", "mask_token")
+        keys = (
+            "patch_embed.",
+            "sample_mask_embed.",
+            "encoder.",
+            "mask_token",
+        )
         return {k: v for k, v in self.state_dict().items() if k.startswith(keys) or k == "mask_token"}
 
 

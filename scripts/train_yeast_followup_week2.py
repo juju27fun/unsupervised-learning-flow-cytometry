@@ -11,7 +11,7 @@ from pathlib import Path
 
 import torch
 
-from p3_ssl.config import load_config
+from p3_ssl.config import load_config, validate_active_simulation_dataset
 from p3_ssl.followup_training import train_followup_cell
 
 
@@ -30,7 +30,7 @@ def main() -> None:
     parser.add_argument("--cell", choices=("R0", "R1", "R2", "R3"), required=True)
     parser.add_argument("--seed", type=int, choices=(42, 43, 44), required=True)
     parser.add_argument(
-        "--config", type=Path, default=Path("configs/yeast_ssl_followup_week2_v1.yaml")
+        "--config", type=Path, default=Path("configs/yeast_ssl_followup_week2_v2.yaml")
     )
     parser.add_argument("--real-root", type=Path, required=True)
     parser.add_argument("--simulation-root", type=Path, required=True)
@@ -41,6 +41,7 @@ def main() -> None:
     args = parser.parse_args()
 
     config = load_config(args.config)
+    validate_active_simulation_dataset(config)
     result = train_followup_cell(
         cell=args.cell,
         seed=args.seed,

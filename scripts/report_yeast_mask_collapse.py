@@ -140,7 +140,7 @@ def main() -> None:
     parser.add_argument("--c0-run", type=Path, required=True)
     parser.add_argument("--c1-run", type=Path, required=True)
     parser.add_argument(
-        "--config", type=Path, default=Path("configs/yeast_ssl_mask_collapse_v1.yaml")
+        "--config", type=Path, default=Path("configs/yeast_ssl_mask_collapse_v2.yaml")
     )
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--run-id", required=True)

@@ -141,7 +141,7 @@ def _plot(path: Path, summaries: list[dict[str, object]]) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Benchmark complete yeast masking policies.")
     parser.add_argument(
-        "--config", type=Path, default=Path("configs/yeast_ssl_mask_ablation_v1.yaml")
+        "--config", type=Path, default=Path("configs/yeast_ssl_mask_ablation_v2.yaml")
     )
     parser.add_argument("--real-root", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)

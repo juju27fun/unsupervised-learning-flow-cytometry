@@ -82,6 +82,7 @@ class RealEventDataset(Dataset[dict[str, Any]]):
         max_events: int | None = None,
         *,
         allow_sealed_split: bool = False,
+        source_groups: tuple[str, ...] | None = None,
     ) -> None:
         if split in SEALED_REAL_SPLITS and not allow_sealed_split:
             raise PermissionError(
@@ -95,11 +96,27 @@ class RealEventDataset(Dataset[dict[str, Any]]):
             metadata_path = root / "development_events.csv"
         else:
             metadata_path = root / "events.csv"
-        rows = [row for row in _read_csv(metadata_path) if row["development_split"] == split]
+        selected_groups = None if source_groups is None else set(source_groups)
+        if selected_groups is not None and not selected_groups:
+            raise ValueError("source_groups must be non-empty when provided")
+        rows = [
+            row
+            for row in _read_csv(metadata_path)
+            if row["development_split"] == split
+            and (
+                selected_groups is None
+                or row["source_group"] in selected_groups
+            )
+        ]
         if max_events is not None:
             rows = rows[:max_events]
         if not rows:
-            raise ValueError(f"No real events for split={split}")
+            detail = (
+                ""
+                if selected_groups is None
+                else f", source_groups={sorted(selected_groups)}"
+            )
+            raise ValueError(f"No real events for split={split}{detail}")
         self.rows = rows
 
     def __len__(self) -> int:

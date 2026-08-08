@@ -107,7 +107,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Gate yeast patch-mask ablation runs.")
     parser.add_argument("--run", action="append", type=_run, required=True)
     parser.add_argument(
-        "--config", type=Path, default=Path("configs/yeast_ssl_mask_ablation_v1.yaml")
+        "--config", type=Path, default=Path("configs/yeast_ssl_mask_ablation_v2.yaml")
     )
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--run-id", required=True)

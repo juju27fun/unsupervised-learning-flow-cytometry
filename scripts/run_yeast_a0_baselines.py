@@ -47,7 +47,7 @@ def _parse_methods(value: str) -> list[str]:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run same-input A0 yeast proxy-label baselines.")
-    parser.add_argument("--config", type=Path, default=Path("configs/yeast_ssl_rebuild_v1.yaml"))
+    parser.add_argument("--config", type=Path, default=Path("configs/yeast_ssl_rebuild_v2.yaml"))
     parser.add_argument("--real-root", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--run-id", required=True)

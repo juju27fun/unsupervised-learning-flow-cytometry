@@ -43,7 +43,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Evaluate frozen yeast Week 2 checkpoints.")
     parser.add_argument("--checkpoint", action="append", type=_checkpoint, required=True)
     parser.add_argument(
-        "--config", type=Path, default=Path("configs/yeast_ssl_followup_week2_v1.yaml")
+        "--config", type=Path, default=Path("configs/yeast_ssl_followup_week2_v2.yaml")
     )
     parser.add_argument("--real-root", type=Path, required=True)
     parser.add_argument("--simulation-root", type=Path, required=True)

@@ -30,16 +30,20 @@ DEFAULT_CONV_CHECKPOINT = (
     REPO_ROOT
     / "artifacts"
     / "unsupervised-learning-flow-cytometry"
-    / "pretrained_backbones"
+    / "pretrained_backbones-10dB"
     / "particles2snr_f_3class_native_params_moment_patchtst_conv1dgap"
     / CONV_MODEL_KEY
     / "best_model.pt"
 )
 MODEL_KEYS = ("moment_official", "patchtst_pretrained", CONV_MODEL_KEY)
+CONV_DISPLAY_TEMPLATE = "{model_name} supervised same-input"
 MODEL_DISPLAY = {
     "moment_official": "MOMENT frozen pretrained",
     "patchtst_pretrained": "PatchTST frozen pretrained",
-    CONV_MODEL_KEY: "Conv1D-GAP-L supervised same-input",
+    # Size-neutral fallback only. The figure label is taken from the
+    # checkpoint's own `model_name` (Conv1DGAP-L, Conv1DGAP-S, ...) by
+    # `resolve_model_display`, so a swapped backbone cannot be mislabelled.
+    CONV_MODEL_KEY: CONV_DISPLAY_TEMPLATE.format(model_name="Conv1D-GAP"),
 }
 WINDOW_DURATION_MS = 2.048
 RASTERIZED_PDF_DPI = 450
@@ -1204,8 +1208,31 @@ def _single_param_display(panel: ParticleEquationPanel) -> tuple[np.ndarray, str
     return value, panel.sweep_param, panel.sweep_param, ""
 
 
-def _model_title(model_key: str) -> str:
-    return MODEL_DISPLAY.get(model_key, model_key)
+def checkpoint_model_name(checkpoint_path: Path) -> str | None:
+    """`model_name` stored in a checkpoint payload, or None when unavailable."""
+    path = Path(checkpoint_path)
+    if not path.is_file():
+        return None
+    state = torch.load(path, map_location="cpu")
+    if not isinstance(state, dict):
+        return None
+    name = state.get("model_name")
+    return str(name) if name else None
+
+
+def resolve_model_display(conv_checkpoint: Path | None = None) -> dict[str, str]:
+    """Figure labels, with the Conv1D-GAP one read from the encoded checkpoint."""
+    display = dict(MODEL_DISPLAY)
+    if conv_checkpoint is not None:
+        model_name = checkpoint_model_name(conv_checkpoint)
+        if model_name:
+            display[CONV_MODEL_KEY] = CONV_DISPLAY_TEMPLATE.format(model_name=model_name)
+    return display
+
+
+def _model_title(model_key: str, display_names: dict[str, str] | None = None) -> str:
+    names = MODEL_DISPLAY if display_names is None else display_names
+    return names.get(model_key, model_key)
 
 
 def _scenario_title(scenario: str) -> str:
@@ -1253,6 +1280,7 @@ def plot_model_grid(
     output_pdf: Path,
     output_png: Path,
     scenario: str,
+    display_names: dict[str, str] | None = None,
 ) -> None:
     backbone.apply_fig7_plot_style()
     model_keys = list(reductions_by_model)
@@ -1276,7 +1304,7 @@ def plot_model_grid(
                 if row != 0:
                     ax.set_title("")
                 if col == 0:
-                    ax.set_ylabel(f"{_model_title(model_key)}\n{reduction_key.upper()}", fontsize=7)
+                    ax.set_ylabel(f"{_model_title(model_key, display_names)}\n{reduction_key.upper()}", fontsize=7)
     caption = (
         f"Latent spaces for {_scenario_title(scenario)}: PCA and t-SNE projections, "
         f"n={n_per_panel} points per swept variable. Points are rasterized in the PDF; axes and text remain vector graphics."
@@ -1299,6 +1327,7 @@ def plot_single_model_figure(
     output_pdf: Path,
     output_png: Path,
     scenario: str,
+    display_names: dict[str, str] | None = None,
 ) -> None:
     del metrics
     backbone.apply_fig7_plot_style()
@@ -1321,12 +1350,12 @@ def plot_single_model_figure(
             if col == 0:
                 ax.set_ylabel(reduction_key.upper(), fontsize=8)
     caption = (
-        f"{_scenario_title(scenario)} encoded with {_model_title(model_key)}. "
+        f"{_scenario_title(scenario)} encoded with {_model_title(model_key, display_names)}. "
         f"n={n_per_panel} points per swept variable. "
         "Sweeps use physical OFI feature ranges when run with the paper-table source."
         f"{_phase_profile_caption(panels)}"
     )
-    fig.suptitle(f"Latent spaces - {_model_title(model_key)}", fontsize=12, y=0.965)
+    fig.suptitle(f"Latent spaces - {_model_title(model_key, display_names)}", fontsize=12, y=0.965)
     fig.subplots_adjust(left=0.055, right=0.958, top=0.86, bottom=0.16, wspace=0.44, hspace=0.34)
     fig.text(0.055, 0.045, caption, ha="left", va="bottom", fontsize=10, wrap=True)
     output_pdf.parent.mkdir(parents=True, exist_ok=True)
@@ -1623,8 +1652,12 @@ def run(args: argparse.Namespace) -> None:
         return
 
     device = torch.device(args.device)
+    model_keys = parse_models(args.models)
+    display_names = resolve_model_display(
+        args.conv1dgap_checkpoint if CONV_MODEL_KEY in model_keys else None
+    )
     reductions_by_model: dict[str, dict[str, dict[str, np.ndarray]]] = {}
-    for model_key in parse_models(args.models):
+    for model_key in model_keys:
         model_dir = args.output_dir / model_key
         encoder, metadata = load_encoder_for_model(model_key, args, device, model_dir)
         embeddings = encode_panel_embeddings(model_key, encoder, panels, args.batch_size, device)
@@ -1638,7 +1671,7 @@ def run(args: argparse.Namespace) -> None:
             metadata={
                 **metadata,
                 "model_key": model_key,
-                "display_name": MODEL_DISPLAY.get(model_key, model_key),
+                "display_name": _model_title(model_key, display_names),
                 "input_length": int(args.input_length),
                 "normalization": args.normalization,
             },
@@ -1652,6 +1685,7 @@ def run(args: argparse.Namespace) -> None:
             output_pdf=args.output_dir / f"{model_key}_{args.scenario}_latent_sweeps_pca_tsne.pdf",
             output_png=args.output_dir / f"{model_key}_{args.scenario}_latent_sweeps_pca_tsne.png",
             scenario=args.scenario,
+            display_names=display_names,
         )
 
     plot_model_grid(
@@ -1660,6 +1694,7 @@ def run(args: argparse.Namespace) -> None:
         output_pdf=args.output_dir / f"{args.scenario}_latent_sweeps_pca_tsne.pdf",
         output_png=args.output_dir / f"{args.scenario}_latent_sweeps_pca_tsne.png",
         scenario=args.scenario,
+        display_names=display_names,
     )
     print(f"Wrote particle-equation latent sweeps to {args.output_dir}")
 
@@ -1720,5 +1755,11 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def main(argv: list[str] | None = None) -> int:
+    """Entry point used by `scripts/run_particle_equation_latent_sweeps.py`."""
+    run(build_parser().parse_args(argv))
+    return 0
+
+
 if __name__ == "__main__":
-    run(build_parser().parse_args())
+    raise SystemExit(main())

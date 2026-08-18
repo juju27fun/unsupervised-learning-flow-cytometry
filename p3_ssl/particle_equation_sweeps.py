@@ -26,6 +26,7 @@ from p3_ssl.signal_preprocessing import PREPROCESS_MODES, PREPROCESS_NONE, P1Pre
 
 
 CONV_MODEL_KEY = "conv1dgap_same_input_3class"
+SSL_MODEL_KEY = "bead_ssl_v2_cyclic25"
 DEFAULT_CONV_CHECKPOINT = (
     REPO_ROOT
     / "artifacts"
@@ -35,11 +36,12 @@ DEFAULT_CONV_CHECKPOINT = (
     / CONV_MODEL_KEY
     / "best_model.pt"
 )
-MODEL_KEYS = ("moment_official", "patchtst_pretrained", CONV_MODEL_KEY)
+MODEL_KEYS = ("moment_official", "patchtst_pretrained", CONV_MODEL_KEY, SSL_MODEL_KEY)
 CONV_DISPLAY_TEMPLATE = "{model_name} supervised same-input"
 MODEL_DISPLAY = {
     "moment_official": "MOMENT frozen pretrained",
     "patchtst_pretrained": "PatchTST frozen pretrained",
+    SSL_MODEL_KEY: "CYCLIC25 SSL on this domain",
     # Size-neutral fallback only. The figure label is taken from the
     # checkpoint's own `model_name` (Conv1DGAP-L, Conv1DGAP-S, ...) by
     # `resolve_model_display`, so a swapped backbone cannot be mislabelled.
@@ -91,6 +93,12 @@ YEAST_TEMPLATE_FALLBACK_PARAMS = {
 }
 
 SINGLE_BASE = {"A": 1.0, "fD": 16.0, "phi": 0.0, "t0": 0.5, "tau": 0.06}
+# Envelope asymmetry sweep bounds. The fitted a of the strict Z8 v2 population
+# spans -0.79..0.78 with q05/q95 near +-0.28 (particle-z8-v2-asymmetry-5d-
+# targets-r4); +-0.6 covers the bulk without extrapolating past the observed
+# extremes.
+SKEW_SWEEP_RANGE = (-0.6, 0.6)
+
 PAPER_TABLE_SINGLE_BASE = {
     "A": 0.43,
     "fD": 23.91 * WINDOW_DURATION_MS,
@@ -208,6 +216,33 @@ def particle_wave(
     return (amplitude[:, None] * carrier * envelope).astype(np.float32)
 
 
+def particle_wave_skewed(
+    t: np.ndarray,
+    amplitude: np.ndarray,
+    doppler: np.ndarray,
+    phase: np.ndarray,
+    center: np.ndarray,
+    width: np.ndarray,
+    skew: np.ndarray,
+) -> np.ndarray:
+    """Same burst with a side-dependent Gaussian width.
+
+    The envelope keeps width*exp(-a) before the centre and width*exp(+a) after,
+    the form fitted by the Z8 v2 asymmetry generator. a = 0 returns
+    `particle_wave` exactly, so the sweep extends the analytical family instead
+    of replacing it.
+    """
+    carrier = np.cos(2.0 * np.pi * doppler[:, None] * t[None, :] + phase[:, None])
+    delta = t[None, :] - center[:, None]
+    side_width = np.where(
+        delta < 0.0,
+        width[:, None] * np.exp(-skew[:, None]),
+        width[:, None] * np.exp(skew[:, None]),
+    )
+    envelope = np.exp(-np.square(delta) / (2.0 * np.square(side_width)))
+    return (amplitude[:, None] * carrier * envelope).astype(np.float32)
+
+
 def _normalize_batch(signals: np.ndarray, normalization: str) -> np.ndarray:
     return np.stack([normalize_signal(row, mode=normalization) for row in signals]).astype(np.float32)
 
@@ -258,6 +293,37 @@ def _single_snr_panel(
         "snr_db",
         "SNR",
         "snr_db",
+        signal.astype(np.float32),
+        encoded_signal,
+        values.astype(np.float32, copy=False),
+        params,
+        window_duration_ms,
+    )
+
+
+def _single_skew_panel(
+    rng: np.random.Generator,
+    values: np.ndarray,
+    length: int,
+    noise_std: float,
+    normalization: str,
+    base_params: dict[str, float],
+    window_duration_ms: float = WINDOW_DURATION_MS,
+) -> ParticleEquationPanel:
+    """Sweep the sixth physical coordinate, envelope asymmetry a."""
+    n = int(values.size)
+    params = {name: np.full(n, value, dtype=np.float32) for name, value in base_params.items()}
+    params["skew_a"] = values.astype(np.float32, copy=False)
+    t = np.linspace(0.0, 1.0, length, dtype=np.float32)
+    signal = particle_wave_skewed(
+        t, params["A"], params["fD"], params["phi"], params["t0"], params["tau"], params["skew_a"]
+    )
+    signal = signal + _noise(rng, signal.shape, noise_std)
+    encoded_signal = _normalize_batch(signal, normalization)
+    return ParticleEquationPanel(
+        "skew_a",
+        "Envelope asymmetry a",
+        "skew_a",
         signal.astype(np.float32),
         encoded_signal,
         values.astype(np.float32, copy=False),
@@ -371,6 +437,19 @@ def generate_single_particle_panels(
                 shuffle,
             ),
             length=length,
+            normalization=normalization,
+            base_params=base_params,
+            window_duration_ms=signal_window_duration_ms,
+        )
+    )
+    panels.append(
+        _single_skew_panel(
+            rng=rng,
+            values=_linspace_param(
+                SKEW_SWEEP_RANGE[0], SKEW_SWEEP_RANGE[1], n_per_panel, rng, shuffle
+            ),
+            length=length,
+            noise_std=noise_std,
             normalization=normalization,
             base_params=base_params,
             window_duration_ms=signal_window_duration_ms,
@@ -1072,6 +1151,40 @@ def encode_conv_features_all(model: nn.Module, signals: np.ndarray, batch_size: 
     return np.concatenate(chunks, axis=0)
 
 
+def load_bead_ssl_v2(checkpoint_path: Path, config_path: Path, device: torch.device | str) -> nn.Module:
+    """Load the CYCLIC25 self-supervised encoder from its training checkpoint."""
+    from p3_ssl.bead_ssl import make_model
+    from p3_ssl.bead_ssl_v2 import load_bead_ssl_v2_config
+
+    if not checkpoint_path.is_file():
+        raise FileNotFoundError(f"Missing bead SSL v2 checkpoint: {checkpoint_path}")
+    model = make_model(load_bead_ssl_v2_config(config_path))
+    state = torch.load(checkpoint_path, map_location="cpu")
+    model_state = state.get("model_state_dict", state) if isinstance(state, dict) else state
+    model.load_state_dict(model_state, strict=True)
+    model.to(device).eval()
+    return model
+
+
+def encode_ssl_features_all(
+    model: nn.Module, signals: np.ndarray, batch_size: int, device: torch.device
+) -> np.ndarray:
+    """Mean-pool the encoder tokens, the transformer analogue of Conv1D-GAP.
+
+    `encode` returns one token per patch; the sweep needs one vector per signal,
+    and averaging tokens matches the global pooling the convolutional baseline
+    already applies.
+    """
+    chunks: list[np.ndarray] = []
+    model.eval()
+    with torch.no_grad():
+        for start in range(0, signals.shape[0], batch_size):
+            batch = torch.from_numpy(signals[start : start + batch_size]).float().to(device)
+            tokens = model.encode(batch)
+            chunks.append(tokens.mean(dim=1).detach().cpu().numpy().astype(np.float32))
+    return np.concatenate(chunks, axis=0)
+
+
 def load_encoder_for_model(model_key: str, args: argparse.Namespace, device: torch.device, model_dir: Path):
     if model_key == "moment_official":
         args.event_length = int(args.input_length)
@@ -1087,6 +1200,15 @@ def load_encoder_for_model(model_key: str, args: argparse.Namespace, device: tor
             "supervised_same_input_checkpoint": True,
             "public_pretrained": False,
         }
+    if model_key == SSL_MODEL_KEY:
+        model = load_bead_ssl_v2(args.bead_ssl_checkpoint, args.bead_ssl_config, device)
+        return model, {
+            "source_model_id": str(args.bead_ssl_checkpoint),
+            "input_representation": f"same normalized {int(args.input_length)}-sample synthetic tensor as MOMENT/PatchTST",
+            "self_supervised_on_domain": True,
+            "public_pretrained": False,
+            "pooling": "mean over encoder tokens",
+        }
     raise ValueError(f"Unsupported model: {model_key}")
 
 
@@ -1101,6 +1223,8 @@ def encode_panel_embeddings(
     for panel in panels:
         if model_key == CONV_MODEL_KEY:
             emb = encode_conv_features_all(encoder, panel.encoded_signal, batch_size, device)
+        elif model_key == SSL_MODEL_KEY:
+            emb = encode_ssl_features_all(encoder, panel.encoded_signal, batch_size, device)
         else:
             emb = backbone.encode_all_events(model_key, encoder, panel.encoded_signal, batch_size, device)
         embeddings[panel.key] = emb.astype(np.float32)
@@ -1707,6 +1831,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--moment-model-id", default=MOMENT_DEFAULT_ID)
     parser.add_argument("--patchtst-model-id", default=PATCHTST_DEFAULT_ID)
     parser.add_argument("--conv1dgap-checkpoint", type=Path, default=DEFAULT_CONV_CHECKPOINT)
+    parser.add_argument("--bead-ssl-checkpoint", type=Path, default=None)
+    parser.add_argument("--bead-ssl-config", type=Path, default=None)
     parser.add_argument("--cache-dir", type=Path, default=ROOT.parent / ".cache" / "huggingface")
     parser.add_argument("--n-per-panel", type=int, default=1800)
     parser.add_argument("--input-length", type=int, default=4096)

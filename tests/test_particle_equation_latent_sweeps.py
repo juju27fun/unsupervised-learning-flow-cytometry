@@ -12,6 +12,7 @@ from p3_ssl.particle_equation_sweeps import (
     WINDOW_DURATION_MS,
     _single_particle_display_signal,
     generate_single_particle_panels,
+    particle_wave_skewed,
     generate_two_particle_panels,
     generate_yeast_budded_two_particle_panels,
     particle_wave,
@@ -42,7 +43,7 @@ def test_generate_single_particle_panels_shapes_and_ranges() -> None:
     panels = generate_single_particle_panels(n_per_panel=12, length=128, seed=1, noise_std=0.0, normalization="none")
     by_key = {panel.key: panel for panel in panels}
 
-    assert len(panels) == 6
+    assert len(panels) == 7
     for panel in panels:
         assert panel.signal.shape == (12, 128)
         assert panel.encoded_signal.shape == (12, 128)
@@ -58,6 +59,19 @@ def test_generate_single_particle_panels_shapes_and_ranges() -> None:
     assert by_key["phase_phi"].params["phi"].max() <= 2.0 * np.pi
     assert by_key["center_t0"].params["t0"].min() >= 0.2
     assert by_key["center_t0"].params["t0"].max() <= 0.8
+    # The sixth physical coordinate stays inside the fitted asymmetry observed
+    # on the strict Z8 v2 population, and a = 0 must reproduce the symmetric
+    # burst exactly so the sweep extends the analytical family.
+    skew = by_key["skew_a"]
+    assert skew.params["skew_a"].min() >= -0.6
+    assert skew.params["skew_a"].max() <= 0.6
+    t = np.linspace(0.0, 1.0, 128, dtype=np.float32)
+    ones = np.ones(4, dtype=np.float32)
+    symmetric = particle_wave(t, ones, 16.0 * ones, 0.0 * ones, 0.5 * ones, 0.06 * ones)
+    unskewed = particle_wave_skewed(
+        t, ones, 16.0 * ones, 0.0 * ones, 0.5 * ones, 0.06 * ones, np.zeros(4, dtype=np.float32)
+    )
+    assert np.array_equal(symmetric, unskewed)
     assert by_key["width_tau"].params["tau"].min() >= 0.02
     assert by_key["width_tau"].params["tau"].max() <= 0.15
     assert by_key["snr_db"].params["snr_db"].min() >= SNR_SWEEP_QUANTILES_DB["q20"]
